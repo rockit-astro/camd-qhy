@@ -25,7 +25,7 @@ CONFIG_SCHEMA = {
     'required': [
         'daemon', 'pipeline_daemon', 'pipeline_handover_timeout', 'log_name', 'control_machines', 'camera_device_id',
         'camera_id', 'cooler_setpoint', 'cooler_update_delay', 'cooler_pwm_step', 'mode', 'gain', 'offset',
-        'use_gpsbox', 'output_path', 'output_prefix', 'expcount_path'
+        'use_gpsbox', 'header_card_capacity', 'output_path', 'output_prefix', 'expcount_path'
     ],
     'properties': {
         'daemon': {
@@ -84,6 +84,10 @@ CONFIG_SCHEMA = {
         'use_gpsbox': {
             'type': 'boolean',
         },
+        'header_card_capacity': {
+            'type': 'integer',
+            'min': 0
+        },
         'camera_id': {
             'type': 'string',
         },
@@ -128,6 +132,7 @@ class Config:
         self.gain = config_json['gain']
         self.offset = config_json['offset']
         self.use_gpsbox = config_json['use_gpsbox']
+        self.header_card_capacity = config_json['header_card_capacity']
         self.cooler_setpoint = config_json['cooler_setpoint']
         self.cooler_update_delay = config_json['cooler_update_delay']
         self.cooler_pwm_step = config_json['cooler_pwm_step']

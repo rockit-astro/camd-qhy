@@ -12,6 +12,7 @@
   "gain": 26,
   "offset": 30,
   "use_gpsbox": true,
+  "header_card_capacity": 144,
   "camera_id": "CAM1",
   "output_path": "D:/data/incoming/",
   "output_prefix": "cam1",

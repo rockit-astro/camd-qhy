@@ -27,6 +27,7 @@ The configuration options are:
   "gain": 26, # Gain setting for the CMOS sensor. See the QHY600 spec sheet for details on the implications on signal and read noise.
   "offset": 140, # Bias setting for the CMOS sensor.
   "use_gpsbox": true, # Use attached GPS Box to measure exposure timestamps.
+  "header_card_capacity": 144, # Pad the fits header with blank space to fit at least this many cards without reallocation.
   "camera_id": "TEST", # Value to use for the CAMERA fits header keyword.
   "output_path": "/var/tmp/", # Path to save temporary output frames before they are handed to the pipeline daemon. This should match the pipeline incoming_data_path setting.
   "output_prefix": "test", # Filename prefix to use for temporary output frames.
