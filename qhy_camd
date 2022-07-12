@@ -63,6 +63,7 @@ class QHYControl:
     MANUALPWM = 16
     COOLER = 18
     GPS = 36
+    UVLO_STATUS = 67
 
 
 class GPSData(Structure):
@@ -408,8 +409,11 @@ class CameraDaemon:
                     # Query temperature status
                     self._cooler_temperature = self._driver.GetQHYCCDParam(self._handle, QHYControl.CURTEMP)
                     self._cooler_pwm = self._driver.GetQHYCCDParam(self._handle, QHYControl.CURPWM)
+                    uvlo_status = int(self._driver.GetQHYCCDParam(self._handle, QHYControl.UVLO_STATUS))
 
-                    if self._cooler_setpoint is None:
+                    if int(uvlo_status) in [2, 3, 9]:
+                        self._cooler_mode = CoolerMode.UVLOError
+                    elif self._cooler_setpoint is None:
                         # Ramp the cooler power down over a few update cycles
                         if self._cooler_pwm > 0:
                             self._cooler_mode = CoolerMode.Warming

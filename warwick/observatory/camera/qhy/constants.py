@@ -113,7 +113,7 @@ class CameraStatus:
 
 class CoolerMode:
     """Camera temperature control mode"""
-    Unknown, Warm, Warming, Cooling, Locking, Locked = range(6)
+    Unknown, Warm, Warming, Cooling, Locking, Locked, UVLOError = range(7)
 
     _labels = {
         0: 'UNKNOWN',
@@ -121,7 +121,8 @@ class CoolerMode:
         2: 'WARMING',
         3: 'COOLING',
         4: 'LOCKING',
-        5: 'LOCKED'
+        5: 'LOCKED',
+        6: 'UVLO ERROR'
     }
 
     _formats = {
@@ -130,7 +131,8 @@ class CoolerMode:
         2: TFmt.Yellow + TFmt.Bold,
         3: TFmt.Cyan + TFmt.Bold,
         4: TFmt.Yellow + TFmt.Bold,
-        5: TFmt.Green + TFmt.Bold
+        5: TFmt.Green + TFmt.Bold,
+        6: TFmt.Red + TFmt.Bold
     }
 
     @classmethod
