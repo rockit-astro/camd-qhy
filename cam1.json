@@ -4,7 +4,7 @@
   "pipeline_handover_timeout": 10,
   "log_name": "qhy_camd@cam1",
   "control_machines": ["CLASPTCS", "CLASPDAS1"],
-  "camera_device_id": "QHY600M-1a1ce44eaaa648ee3",
+  "camera_device_id": "QHY600MPCIE-1a1ce44eaaa648ee3",
   "cooler_setpoint": -5,
   "cooler_update_delay": 5,
   "cooler_pwm_step": 3,
