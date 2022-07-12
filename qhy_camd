@@ -135,7 +135,8 @@ def process_frames(process_queue, stop_signal, camera_id, camera_device_id, use_
                    pipeline_handover_timeout):
     """
     Helper process to save frames to disk.
-    This uses a process (rather than a thread) to avoid the GIL stalling frame acquisition
+    This uses a process (rather than a thread) to avoid the GIL bottlenecking throughput,
+    and multiple worker processes allow frames to be handled in parallel.
     """
     pipeline_daemon = getattr(daemons, pipeline_daemon_name)
     while True:
@@ -393,12 +394,11 @@ class CameraDaemon:
         self._processing_queue = Queue()
         self._processing_stop_signal = Value(c_bool, False)
 
-        processing_process = Process(target=process_frames, args=(
-            self._processing_queue, self._processing_stop_signal, config.camera_id, config.camera_device_id,
-            config.use_gpsbox, config.header_card_capacity, config.output_path, config.log_name,
-            config.pipeline_daemon_name, config.pipeline_handover_timeout))
-        processing_process.daemon = True
-        processing_process.start()
+        for _ in range(config.worker_processes):
+            Process(target=process_frames, daemon=True, args=(
+                self._processing_queue, self._processing_stop_signal, config.camera_id, config.camera_device_id,
+                config.use_gpsbox, config.header_card_capacity, config.output_path, config.log_name,
+                config.pipeline_daemon_name, config.pipeline_handover_timeout)).start()
 
     def __poll_camera_status(self):
         """Background thread that polls the camera status and controls cooling"""
