@@ -1,6 +1,6 @@
 {
   "daemon": "clasp_camera_2",
-  "pipeline_daemon": "clasp_pipeline_1",
+  "pipeline_daemon": "clasp_pipeline",
   "pipeline_handover_timeout": 10,
   "log_name": "qhy_camd@cam2",
   "control_machines": ["CLASPTCS", "CLASPDAS1"],
