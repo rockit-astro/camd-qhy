@@ -15,6 +15,7 @@ all:
 	${RPMBUILD} -ba observatory-qhy-camera-client.spec
 	${RPMBUILD} -ba python3-warwick-observatory-qhy-camera.spec
 	${RPMBUILD} -ba clasp-qhy-camera-data.spec
+	${RPMBUILD} -ba superwasp-qhy-camera-data.spec
 	mv build/noarch/*.rpm .
 	rm -rf build
 	mv qhy_camd.bak qhy_camd
