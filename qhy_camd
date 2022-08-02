@@ -131,8 +131,8 @@ class GPSData(Structure):
 
 
 def process_frames(process_queue, stop_signal, camera_id, camera_device_id, use_gpsbox,
-                   header_card_capacity, output_path, log_name, pipeline_daemon_name,
-                   pipeline_handover_timeout):
+                   filter_name, header_card_capacity, output_path, log_name,
+                   pipeline_daemon_name, pipeline_handover_timeout):
     """
     Helper process to save frames to disk.
     This uses a process (rather than a thread) to avoid the GIL bottlenecking throughput,
@@ -216,6 +216,7 @@ def process_frames(process_queue, stop_signal, camera_id, camera_device_id, use_
             ('FWVER', frame['firmware_version'], 'camera firmware version'),
             ('CAMID', camera_id, 'camera identifier'),
             ('CAMERA', camera_device_id, 'camera model and serial number'),
+            ('FILTER', filter_name, 'filter installed in camera path'),
             ('CAM-MODE', frame['mode'], 'cmos read mode ({})'.format(frame['mode_name'])),
             ('CAM-TFER', 'STREAM' if frame['stream'] else 'SINGLE', 'frame transfer mode'),
             ('CAM-GAIN', frame['gain'], 'cmos gain setting'),
@@ -397,7 +398,7 @@ class CameraDaemon:
         for _ in range(config.worker_processes):
             Process(target=process_frames, daemon=True, args=(
                 self._processing_queue, self._processing_stop_signal, config.camera_id, config.camera_device_id,
-                config.use_gpsbox, config.header_card_capacity, config.output_path, config.log_name,
+                config.use_gpsbox, config.filter, config.header_card_capacity, config.output_path, config.log_name,
                 config.pipeline_daemon_name, config.pipeline_handover_timeout)).start()
 
     def __poll_camera_status(self):
