@@ -2,7 +2,7 @@ Name:      clasp-qhy-camera-data
 Version:   20220727
 Release:   0
 Url:       https://github.com/warwick-one-metre/qhy-camd
-Summary:   Camera configuration for CLASP telescope.
+Summary:   Camera configuration for the CLASP telescope.
 License:   GPL-3.0
 Group:     Unspecified
 BuildArch: noarch
@@ -11,8 +11,8 @@ BuildArch: noarch
 
 %build
 mkdir -p %{buildroot}%{_sysconfdir}/camd
-%{__install} %{_sourcedir}/cam1.json %{buildroot}%{_sysconfdir}/camd
-%{__install} %{_sourcedir}/cam2.json %{buildroot}%{_sysconfdir}/camd
+%{__install} %{_sourcedir}/clasp/cam1.json %{buildroot}%{_sysconfdir}/camd
+%{__install} %{_sourcedir}/clasp/cam2.json %{buildroot}%{_sysconfdir}/camd
 
 %files
 %defattr(0644,root,root,-)
