@@ -5,7 +5,7 @@
   "log_name": "qhy_camd@cam2",
   "control_machines": ["CLASPTCS", "CLASPDAS1"],
   "camera_device_id": "QHY600MPCIE-4714d44c9ff6dc6db",
-  "cooler_setpoint": -5,
+  "cooler_setpoint": 0,
   "cooler_update_delay": 5,
   "cooler_pwm_step": 3,
   "worker_processes": 3,
