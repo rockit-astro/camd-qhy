@@ -17,6 +17,7 @@
 
 """Daemon for controlling a QHY600M camera via Pyro"""
 
+# pylint: disable=too-many-arguments
 # pylint: disable=too-many-return-statements
 # pylint: disable=too-many-instance-attributes
 # pylint: disable=too-many-lines
@@ -24,151 +25,32 @@
 # pylint: disable=too-many-statements
 
 import argparse
-from ctypes import c_bool, c_double, c_int, c_uint8, c_uint16, c_uint32, c_void_p
-from ctypes import byref, create_string_buffer, POINTER
-import json
-from multiprocessing import Process, Queue, Value
-import pathlib
-import platform
+from ctypes import c_bool
+from multiprocessing import Process, Queue, Value, Pipe
 import threading
-from astropy.time import Time
-import astropy.units as u
-import numpy as np
 import Pyro4
-from warwick.observatory.common import log, TryLock
+from warwick.observatory.common import TryLock
 from warwick.observatory.common.helpers import pyro_client_matches
-from warwick.observatory.camera.qhy import Config, CommandStatus, CameraStatus, CoolerMode, output_process
+from warwick.observatory.camera.qhy import Config, CommandStatus, CameraStatus, output_process, qhy_process
 
 # Set automatically when generating RPM package
 SOFTWARE_VERSION = "UNKNOWN"
-
-
-class QHYStatus:
-    Success = 0
-    Error = 0xFFFFFFFF
-    ReadDirectly = 0x2001
-
-
-class QHYControl:
-    GAIN = 6
-    OFFSET = 7
-    EXPOSURE = 8
-    USBTRAFFIC = 12
-    CURTEMP = 14
-    CURPWM = 15
-    MANUALPWM = 16
-    COOLER = 18
-    GPS = 36
-    UVLO_STATUS = 67
-
-
-def open_device(driver, camera_device_id):
-    """Returns None if device is not found"""
-    # Enumerate cameras to find target
-    camera_count = driver.ScanQHYCCD()
-    print('found {} cameras'.format(camera_count))
-
-    device_id_buf = create_string_buffer(32)
-    for i in range(camera_count):
-        status = driver.GetQHYCCDId(i, device_id_buf)
-        if status != QHYStatus.Success:
-            continue
-
-        device_id = device_id_buf.value.decode('ascii')
-        print('found camera ' + device_id)
-        if device_id == camera_device_id:
-            return driver.OpenQHYCCD(device_id_buf)
-
-    return None
 
 
 class CameraDaemon:
     """Daemon interface for andor camera"""
     def __init__(self, config):
         self._config = config
-        self._status = CameraStatus.Disabled
-
-        self._handle = c_void_p()
-        self._driver = None
-        self._driver_lock = threading.Lock()
-
-        self._status_condition = threading.Condition()
         self._command_lock = threading.Lock()
 
-        self._camera_firmware_version = ''
-        self._sdk_version = ''
+        # The QHY SDK does not seem to clean itself up correctly when disconnecting and reconnecting.
+        # All the actual camera communication is handled through a separate process, which is created
+        # in the initialize method and terminated in the shutdown method. This ensures that all internal
+        # SDK state is reinitialized without having to restart the entire daemon.
+        self._qhy_process = self._qhy_pipe = None
+        self._qhy_lock = threading.Lock()
 
-        self._readout_width = 0
-        self._readout_height = 0
-
-        # Streaming frames (aka Live Mode) enables overlapping readout, avoiding
-        # dead time between exposures. However, a bug in the QHY600 firmware / SDK
-        # >= 20220217 skips the first frame, adding a full exposure dead time at the
-        # start of the sequence. If we are only interested in one or two frames it
-        # is more efficient to disable streaming and take individual exposures.
-        self._stream_frames = True
-
-        # Image geometry (marking edges of overscan etc)
-        self._geometry_image_x1 = 0
-        self._geometry_image_x2 = 0
-        self._geometry_image_y1 = 0
-        self._geometry_image_y2 = 0
-
-        self._cooler_condition = threading.Condition()
-        self._cooler_mode = CoolerMode.Unknown
-        self._cooler_setpoint = config.cooler_setpoint
-        self._cooler_temperature = 0
-        self._cooler_pwm = 0
-
-        self._exposure_time = 1
-        self._gain = config.gain
-        self._offset = config.offset
-        self._mode_name = 'unknown'
-
-        # Limit and number of frames acquired during the next sequence
-        # Set to 0 to run continuously
-        self._sequence_frame_limit = 0
-
-        # Number of frames acquired this sequence
-        self._sequence_frame_count = 0
-
-        # Time that the latest frame in the exposure was started
-        self._sequence_exposure_start_time = Time.now()
-
-        # Information for building the output filename
-        self._output_directory = pathlib.Path(config.output_path)
-        self._output_frame_prefix = config.output_prefix
-
-        # Persistent frame counters
-        self._counter_filename = config.expcount_path
-        try:
-            with open(self._counter_filename, 'r') as infile:
-                data = json.load(infile)
-                self._exposure_count = data['exposure_count']
-                self._exposure_count_reference = data['exposure_reference']
-        except Exception:
-            now = Time.now().strftime('%Y-%m-%d')
-            self._exposure_count = 0
-            self._exposure_count_reference = now
-
-        # Thread that runs the exposure sequence
-        # Initialized by start() method
-        self._acquisition_thread = None
-
-        # Signal that the exposure sequence should be terminated
-        # at end of the current frame
-        self._stop_acquisition = False
-
-        self._log_acquisition_status = True
-
-        self._exposure_delay_condition = threading.Condition()
-
-        # Thread for polling camera status
-        status_thread = threading.Thread(target=self.__poll_camera_status)
-        status_thread.daemon = True
-        status_thread.start()
-
-        # Subprocess for processing acquired frames
+        # Subprocesses for processing acquired frames
         self._processing_queue = Queue()
         self._processing_stop_signal = Value(c_bool, False)
 
@@ -178,306 +60,21 @@ class CameraDaemon:
                 config.use_gpsbox, config.filter, config.header_card_capacity, config.output_path, config.log_name,
                 config.pipeline_daemon_name, config.pipeline_handover_timeout, SOFTWARE_VERSION)).start()
 
-    def __poll_camera_status(self):
-        """Background thread that polls the camera status and controls cooling"""
-        while True:
-            # Query temperature
-            with self._driver_lock:
-                if self._driver is not None:
-                    # Query temperature status
-                    self._cooler_temperature = self._driver.GetQHYCCDParam(self._handle, QHYControl.CURTEMP)
-                    self._cooler_pwm = self._driver.GetQHYCCDParam(self._handle, QHYControl.CURPWM)
-                    uvlo_status = int(self._driver.GetQHYCCDParam(self._handle, QHYControl.UVLO_STATUS))
-
-                    if int(uvlo_status) in [2, 3, 9]:
-                        self._cooler_mode = CoolerMode.UVLOError
-                    elif self._cooler_setpoint is None:
-                        # Ramp the cooler power down over a few update cycles
-                        if self._cooler_pwm > 0:
-                            self._cooler_mode = CoolerMode.Warming
-                            p = max(0, self._cooler_pwm - self._config.cooler_pwm_step)
-                            status = self._driver.SetQHYCCDParam(self._handle, QHYControl.MANUALPWM, c_double(p))
-                            if status != QHYStatus.Success:
-                                print('failed to update cooler PWM control with status {}'.format(status))
-                        else:
-                            self._cooler_mode = CoolerMode.Warm
-                    else:
-                        temp_delta = abs(self._cooler_temperature - self._cooler_setpoint)
-                        if temp_delta > 5:
-                            # Ramp the cooler power towards the requested temperature over a few update cycles
-                            if self._cooler_temperature > self._cooler_setpoint:
-                                self._cooler_mode = CoolerMode.Cooling
-                                p = min(255, self._cooler_pwm + self._config.cooler_pwm_step)
-                            else:
-                                self._cooler_mode = CoolerMode.Warming
-                                p = max(0, self._cooler_pwm - self._config.cooler_pwm_step)
-
-                            status = self._driver.SetQHYCCDParam(self._handle, QHYControl.MANUALPWM, c_double(p))
-                            if status != QHYStatus.Success:
-                                print('failed to update cooler PWM control with status {}'.format(status))
-                        else:
-                            self._cooler_mode = CoolerMode.Locked if temp_delta < 0.5 else CoolerMode.Locking
-
-                            target = self._driver.GetQHYCCDParam(self._handle, QHYControl.COOLER)
-                            if abs(target - self._cooler_setpoint) > 0.1:
-                                # Switch to auto control and/or update new target temperature
-                                status = self._driver.SetQHYCCDParam(self._handle, QHYControl.COOLER,
-                                                                     c_double(self._cooler_setpoint))
-                                if status != QHYStatus.Success:
-                                    print('failed to set temperature to {} with status {}'.format(self._cooler_setpoint,
-                                                                                                  status))
-                else:
-                    self._status = CameraStatus.Disabled
-
-            with self._cooler_condition:
-                self._cooler_condition.wait(self._config.cooler_update_delay)
-
-    def __run_exposure_sequence(self):
-        """Worker thread that acquires frames and their times.
-           Tagged frames are pushed to the acquisition queue
-           for further processing on another thread"""
-        try:
-            self._processing_stop_signal.value = False
-            self._sequence_frame_count = 0
-            with self._driver_lock:
-                exp = c_double(int(1e6 * self._exposure_time))
-                status = self._driver.SetQHYCCDParam(self._handle, QHYControl.EXPOSURE, exp)
-                if status != QHYStatus.Success:
-                    log.error(self._config.log_name, 'Failed to set exposure time (' + str(status) + ')')
-                    return
-
-            if self._stream_frames:
-                status = self._driver.BeginQHYCCDLive(self._handle)
-                if status != QHYStatus.Success:
-                    log.error(self._config.log_name, 'Failed to start exposures (' + str(status) + ')')
-                    return
-
-            while not self._stop_acquisition and not self._processing_stop_signal.value:
-                with self._driver_lock:
-                    self._sequence_exposure_start_time = Time.now()
-                    if not self._stream_frames:
-                        status = self._driver.ExpQHYCCDSingleFrame(self._handle)
-                        if status == QHYStatus.Error:
-                            log.error(self._config.log_name, 'Failed to start exposure sequence (' + str(status) + ')')
-                            break
-
-                pixel_count = self._readout_width * self._readout_height
-                framedata = bytearray(pixel_count * 2)
-
-                width = c_uint32(self._readout_width)
-                height = c_uint32(self._readout_height)
-                bpp = c_uint32(16)
-                channels = c_uint32(1)
-                cdata = (c_uint16 * pixel_count).from_buffer(framedata)
-
-                if self._stream_frames:
-                    status = QHYStatus.Error
-                    while status != QHYStatus.Success:
-                        status = self._driver.GetQHYCCDLiveFrame(
-                            self._handle, byref(width), byref(height), byref(bpp), byref(channels), cdata)
-
-                        if self._stop_acquisition or self._processing_stop_signal.value:
-                            break
-                else:
-                    status = self._driver.GetQHYCCDSingleFrame(
-                        self._handle, byref(width), byref(height), byref(bpp), byref(channels), cdata)
-
-                    if status != QHYStatus.Success:
-                        log.error(self._config.log_name, 'Failed to download frame (' + str(status) + ')')
-                        break
-
-                if self._stop_acquisition or self._processing_stop_signal.value:
-                    break
-
-                pixel_period_ps = c_uint32()
-                line_period_ns = c_uint32()
-                frame_period_us = c_uint32()
-                clocks_per_line = c_uint32()
-                lines_per_frame = c_uint32()
-                actual_exposure_us = c_uint32()
-                is_long_exposure = c_uint8()
-
-                self._driver.GetQHYCCDPreciseExposureInfo(self._handle,
-                                                          byref(pixel_period_ps),
-                                                          byref(line_period_ns),
-                                                          byref(frame_period_us),
-                                                          byref(clocks_per_line),
-                                                          byref(lines_per_frame),
-                                                          byref(actual_exposure_us),
-                                                          byref(is_long_exposure))
-
-                row = c_uint32(0)
-                readout_offset_us = c_double()
-                self._driver.GetQHYCCDRollingShutterEndOffset(self._handle, row, byref(readout_offset_us))
-                read_end_time = Time.now()
-
-                self._processing_queue.put({
-                    'data': np.frombuffer(framedata, dtype=np.uint16).reshape((height.value, width.value)),
-                    'requested_exposure': float(self._exposure_time),
-                    'exposure': actual_exposure_us.value / 1e6,
-                    'lineperiod': line_period_ns.value / 1e9,
-                    'frameperiod': frame_period_us.value / 1e6,
-                    'readout_offset': readout_offset_us.value,
-                    'mode': self._config.mode,
-                    'mode_name': self._mode_name,
-                    'gain': self._gain,
-                    'offset': self._offset,
-                    'stream': self._stream_frames,
-                    'read_end_time': read_end_time,
-                    'sdk_version': self._sdk_version,
-                    'firmware_version': self._camera_firmware_version,
-                    'cooler_mode': self._cooler_mode,
-                    'cooler_temperature': self._cooler_temperature,
-                    'cooler_pwm': self._cooler_pwm,
-                    'cooler_setpoint': self._cooler_setpoint,
-                    'win_x': 1,
-                    'win_width': self._readout_width,
-                    'win_y': 1,
-                    'win_height': self._readout_height,
-                    'image_x1': self._geometry_image_x1,
-                    'image_x2': self._geometry_image_x2,
-                    'image_y1': self._geometry_image_y1,
-                    'image_y2': self._geometry_image_y2,
-                    'exposure_count': self._exposure_count,
-                    'exposure_count_reference': self._exposure_count_reference
-                })
-
-                self._exposure_count += 1
-
-                # Save updated counts to disk
-                with open(self._counter_filename, 'w') as outfile:
-                    json.dump({
-                        'exposure_count': self._exposure_count,
-                        'exposure_reference': self._exposure_count_reference,
-                    }, outfile)
-
-                self._sequence_frame_count += 1
-
-                # Continue exposure sequence?
-                if 0 < self._sequence_frame_limit <= self._sequence_frame_count:
-                    self._stop_acquisition = True
-        finally:
-            if self._stream_frames:
-                self._driver.StopQHYCCDLive(self._handle)
-
-            print('exposure sequence: complete')
-            if self._log_acquisition_status:
-                log.info(self._config.log_name, 'Exposure sequence complete')
-            self._status = CameraStatus.Idle
-            self._stop_acquisition = False
-
-    @Pyro4.expose
-    def set_target_temperature(self, temperature, quiet=False):
-        """Set the target camera temperature"""
-        if not pyro_client_matches(self._config.control_ips):
-            return CommandStatus.InvalidControlIP
-
-        with TryLock(self._command_lock) as success:
-            if not success:
-                return CommandStatus.Blocked
-
-            if self._status == CameraStatus.Disabled:
+    def qhy_command(self, command, oneway=False, **kwargs):
+        """Send a command to the QHY process and return the response"""
+        with self._qhy_lock:
+            if self._qhy_process is None or not self._qhy_process.is_alive():
                 return CommandStatus.CameraNotInitialized
 
-            if temperature is not None and (temperature < -20 or temperature > 30):
-                return CommandStatus.TemperatureOutsideLimits
-
-            self._cooler_setpoint = temperature
-            with self._cooler_condition:
-                self._cooler_condition.notify()
-
-            if not quiet:
-                log.info(self._config.log_name, 'Target temperature set to ' + str(temperature))
-            return CommandStatus.Succeeded
-
-    @Pyro4.expose
-    def report_status(self):
-        """Returns a dictionary containing the current camera state"""
-        data = {'state': self._status}
-        if self._status != CameraStatus.Disabled:
-            # Estimate the current frame progress based on the time delta
-            exposure_progress = 0
-            sequence_frame_count = self._sequence_frame_count
-            if self._status == CameraStatus.Acquiring:
-                if self._stop_acquisition:
-                    data['state'] = CameraStatus.Aborting
-                else:
-                    if self._sequence_exposure_start_time is not None:
-                        exposure_progress = (Time.now() - self._sequence_exposure_start_time).to(u.s).value
-                        if exposure_progress >= self._exposure_time:
-                            data['state'] = CameraStatus.Reading
-
-            data.update({
-                'cooler_mode': self._cooler_mode,
-                'cooler_temperature': self._cooler_temperature,
-                'cooler_pwm': round(self._cooler_pwm / 2.55),  # byte to percentage
-                'cooler_setpoint': self._cooler_setpoint,
-                'temperature_locked': self._cooler_mode == CoolerMode.Locked, # used by opsd
-                'exposure_time': self._exposure_time,
-                'exposure_progress': exposure_progress,
-                'sequence_frame_limit': self._sequence_frame_limit,
-                'sequence_frame_count': sequence_frame_count,
+            self._qhy_pipe.send({
+                'command': command,
+                'args': kwargs
             })
 
-        return data
+            if oneway:
+                return CommandStatus.Succeeded
 
-    def __set_frame_streaming(self, streaming):
-        if self._stream_frames == streaming:
-            return True
-
-        with self._driver_lock:
-            status = self._driver.SetQHYCCDStreamMode(self._handle, 1 if streaming else 0)
-            if status != QHYStatus.Success:
-                print('failed to set stream mode with status {}'.format(status))
-                return False
-
-            self._stream_frames = streaming
-
-            status = self._driver.InitQHYCCD(self._handle)
-            if status != QHYStatus.Success:
-                print('failed to initialize camera with status {}'.format(status))
-                return False
-
-            status = self._driver.SetQHYCCDResolution(self._handle, 0, 0, self._readout_width, self._readout_height)
-            if status != QHYStatus.Success:
-                print('failed to set readout region with status {}'.format(status))
-                return False
-
-            status = self._driver.SetQHYCCDBitsMode(self._handle, 16)
-            if status != QHYStatus.Success:
-                print('failed to set 16bit readout with status {}'.format(status))
-                return False
-
-            if self._config.use_gpsbox:
-                status = self._driver.SetQHYCCDParam(self._handle, QHYControl.GPS, c_double(1))
-                if status != QHYStatus.Success:
-                    print('failed to set GPS box with status {}'.format(status))
-                    return False
-
-            return True
-
-    @Pyro4.expose
-    def set_frame_streaming(self, streaming, quiet=False):
-        """Set the camera streaming mode"""
-        if not pyro_client_matches(self._config.control_ips):
-            return CommandStatus.InvalidControlIP
-
-        with TryLock(self._command_lock) as success:
-            if not success:
-                return CommandStatus.Blocked
-
-            if self._status == CameraStatus.Disabled:
-                return CommandStatus.CameraNotInitialized
-
-            if self._status != CameraStatus.Idle:
-                return CommandStatus.CameraNotIdle
-
-            if not self.__set_frame_streaming(streaming):
-                return CommandStatus.Failed
-
-            if not quiet:
-                log.info(self._config.log_name, 'Streaming set to {}'.format(streaming))
-            return CommandStatus.Succeeded
+            return self._qhy_pipe.recv()
 
     @Pyro4.expose
     def initialize(self):
@@ -489,185 +86,109 @@ class CameraDaemon:
             if not success:
                 return CommandStatus.Blocked
 
-            if self._status != CameraStatus.Disabled:
-                return CommandStatus.CameraNotUninitialized
+            with self._qhy_lock:
+                if self._qhy_process is not None and self._qhy_process.is_alive():
+                    return CommandStatus.CameraNotUninitialized
 
-            self._status = CameraStatus.Initializing
-            print('initializing driver')
+                self._qhy_pipe, camd_pipe = Pipe()
+                self._qhy_process = Process(target=qhy_process, args=(
+                    camd_pipe, self._config,
+                    self._processing_queue, self._processing_stop_signal
+                ), daemon=True)
 
-            # pylint: disable=import-outside-toplevel
-            if platform.system() == 'Windows':
-                from ctypes import WinDLL
-                driver = WinDLL(r'C:\Program Files\QHYCCD\AllInOne\sdk\x64\qhyccd.dll')
-            else:
-                from ctypes import CDLL
-                driver = CDLL('/usr/local/lib/libqhyccd.so')
-            # pylint: enable=import-outside-toplevel
+                self._qhy_process.start()
+                return self._qhy_pipe.recv()
 
-            driver.OpenQHYCCD.restype = POINTER(c_uint32)
-            driver.GetQHYCCDParam.restype = c_double
-            handle = None
-            try:
-                sdk_version_year = c_uint32()
-                sdk_version_month = c_uint32()
-                sdk_version_day = c_uint32()
-                sdk_version_subday = c_uint32()
-                status = driver.GetQHYCCDSDKVersion(
-                    byref(sdk_version_year), byref(sdk_version_month),
-                    byref(sdk_version_day), byref(sdk_version_subday))
-                if status != QHYStatus.Success:
-                    print('failed to query QHY SDK version with status {}'.format(status))
-                    return CommandStatus.Failed
+    @Pyro4.expose
+    def shutdown(self):
+        """Disconnects from the camera driver"""
+        if not pyro_client_matches(self._config.control_ips):
+            return CommandStatus.InvalidControlIP
 
-                self._sdk_version = '20{0:02d}{1:02d}{2:02d}_{3}'.format(
-                    sdk_version_year.value, sdk_version_month.value, sdk_version_day.value, sdk_version_subday.value)
+        with TryLock(self._command_lock) as success:
+            if not success:
+                return CommandStatus.Blocked
 
-                status = driver.InitQHYCCDResource()
-                if status != QHYStatus.Success:
-                    print('failed to initialize QHY library with status {}'.format(status))
-                    return CommandStatus.Failed
+            self.qhy_command('shutdown', oneway=True)
 
-                # Enumerate cameras to find target
-                handle = open_device(driver, self._config.camera_device_id)
-                if handle is None:
-                    print('camera {} was not found'.format(self._config.camera_device_id))
-                    return CommandStatus.CameraNotFound
+            with self._qhy_lock:
+                # The pyro timeout is usually set to 5s,
+                # so allow a little time to terminate the process if needed
+                self._qhy_process.join(4.5)
+                if self._qhy_process.exitcode is None:
+                    print('force-terminating QHY process')
+                    self._qhy_process.terminate()
 
-                fwv = create_string_buffer(3)
-                status = driver.GetQHYCCDFWVersion(handle, fwv)
-                fwv = fwv.raw
-                if status == QHYStatus.Success:
-                    month = fwv[0] & ~0xf0
-                    day = fwv[1]
-                    if (fwv[0] >> 4) <= 9:
-                        year = (fwv[0] >> 4) + 0x10
-                    else:
-                        year = fwv[0] >> 4
+            return CommandStatus.Succeeded
 
-                    self._camera_firmware_version = '20{0}{1}{2}'.format(year, month, day)
-                else:
-                    print('failed to query firmware version with status {}'.format(status))
-                    return CommandStatus.Failed
+    @Pyro4.expose
+    def report_status(self):
+        """Returns a dictionary containing the current camera state"""
+        data = self.qhy_command('status')
+        if isinstance(data, dict):
+            return data
 
-                status = driver.SetQHYCCDReadMode(handle, c_uint32(self._config.mode))
-                if status != QHYStatus.Success:
-                    print('failed to set read mode with status {}'.format(status))
-                    return CommandStatus.Failed
+        return {'state': CameraStatus.Disabled}
 
-                mode_name = create_string_buffer(128)
-                status = driver.GetQHYCCDReadModeName(handle, c_uint32(self._config.mode), mode_name)
-                if status != QHYStatus.Success:
-                    print('failed to query read mode name with status {}'.format(status))
-                    return CommandStatus.Failed
+    @Pyro4.expose
+    def set_target_temperature(self, temperature, quiet=False):
+        """Set the target camera temperature"""
+        if not pyro_client_matches(self._config.control_ips):
+            return CommandStatus.InvalidControlIP
 
-                self._mode_name = mode_name.value.decode('ascii')
+        with TryLock(self._command_lock) as success:
+            if not success:
+                return CommandStatus.Blocked
 
-                self._stream_frames = True
-                status = driver.SetQHYCCDStreamMode(handle, 1)
-                if status != QHYStatus.Success:
-                    print('failed to set stream mode with status {}'.format(status))
-                    return CommandStatus.Failed
+            return self.qhy_command('temperature', temperature=temperature, quiet=quiet)
 
-                status = driver.InitQHYCCD(handle)
-                if status != QHYStatus.Success:
-                    print('failed to initialize camera with status {}'.format(status))
-                    return CommandStatus.Failed
+    @Pyro4.expose
+    def set_frame_streaming(self, stream, quiet=False):
+        """Set the camera streaming mode"""
+        if not pyro_client_matches(self._config.control_ips):
+            return CommandStatus.InvalidControlIP
 
-                chip_width_mm = c_double()
-                chip_height_mm = c_double()
-                image_width = c_int()
-                image_height = c_int()
-                pixel_width_um = c_double()
-                pixel_height_um = c_double()
-                image_bpp = c_int()
-                status = driver.GetQHYCCDChipInfo(handle,
-                                                  byref(chip_width_mm), byref(chip_height_mm),
-                                                  byref(image_width), byref(image_height),
-                                                  byref(pixel_width_um), byref(pixel_height_um),
-                                                  byref(image_bpp))
-                if status != QHYStatus.Success:
-                    print('failed to query chip info with status {}'.format(status))
-                    return CommandStatus.Failed
+        with TryLock(self._command_lock) as success:
+            if not success:
+                return CommandStatus.Blocked
 
-                self._readout_width = image_width.value
-                self._readout_height = image_height.value
+            return self.qhy_command('stream', stream=stream, quiet=quiet)
 
-                # Enable GPS timestamping
-                if self._config.use_gpsbox:
-                    status = driver.SetQHYCCDParam(handle, QHYControl.GPS, c_double(1))
-                    if status != QHYStatus.Success:
-                        print('failed to set GPS box with status {}'.format(status))
-                        return CommandStatus.Failed
+    @Pyro4.expose
+    def set_exposure(self, seconds, quiet=False):
+        """Set the exposure time in seconds"""
+        if not pyro_client_matches(self._config.control_ips):
+            return CommandStatus.InvalidControlIP
 
-                # Set gain and offset (bias)
-                status = driver.SetQHYCCDParam(handle, QHYControl.GAIN, c_double(self._config.gain))
-                if status != QHYStatus.Success:
-                    print('failed to set default gain with status {}'.format(status))
-                    return CommandStatus.Failed
+        with TryLock(self._command_lock) as success:
+            if not success:
+                return CommandStatus.Blocked
 
-                status = driver.SetQHYCCDParam(handle, QHYControl.OFFSET, c_double(self._config.offset))
-                if status != QHYStatus.Success:
-                    print('failed to set default offset with status {}'.format(status))
-                    return CommandStatus.Failed
+            return self.qhy_command('exposure', exposure=seconds, quiet=quiet)
 
-                # USBTRAFFIC changes the HBLANK behaviour, which impacts the readout timing characteristics.
-                # These timing parameters are currently hardcoded in the frame header creation
-                # and must be recalibrated if this changes!
-                status = driver.SetQHYCCDParam(handle, QHYControl.USBTRAFFIC, c_double(0))
-                if status != QHYStatus.Success:
-                    print('failed to set usbtraffic with status {}'.format(status))
-                    return CommandStatus.Failed
+    @Pyro4.expose
+    def set_gain(self, gain, quiet=False):
+        """Set the sensor gain value"""
+        if not pyro_client_matches(self._config.control_ips):
+            return CommandStatus.InvalidControlIP
 
-                status = driver.SetQHYCCDResolution(handle, 0, 0, image_width, image_height)
-                if status != QHYStatus.Success:
-                    print('failed to set readout region with status {}'.format(status))
-                    return CommandStatus.Failed
+        with TryLock(self._command_lock) as success:
+            if not success:
+                return CommandStatus.Blocked
 
-                status = driver.SetQHYCCDBitsMode(handle, 16)
-                if status != QHYStatus.Success:
-                    print('failed to set 16bit readout with status {}'.format(status))
-                    return CommandStatus.Failed
+            return self.qhy_command('gain', gain=gain, quiet=quiet)
 
-                effective_x = c_uint32()
-                effective_y = c_uint32()
-                effective_width = c_uint32()
-                effective_height = c_uint32()
-                status = driver.GetQHYCCDEffectiveArea(handle,
-                                                       byref(effective_x), byref(effective_y),
-                                                       byref(effective_width), byref(effective_height))
-                if status != QHYStatus.Success:
-                    print('failed to query effective area with status {}'.format(status))
-                    return CommandStatus.Failed
+    @Pyro4.expose
+    def set_offset(self, offset, quiet=False):
+        """Set the sensor bias offset"""
+        if not pyro_client_matches(self._config.control_ips):
+            return CommandStatus.InvalidControlIP
 
-                self._geometry_image_x1 = effective_x.value + 1
-                self._geometry_image_x2 = effective_x.value + effective_width.value
-                self._geometry_image_y1 = effective_y.value + 2 if self._config.use_gpsbox else 1
-                self._geometry_image_y2 = effective_y.value + effective_height.value
+        with TryLock(self._command_lock) as success:
+            if not success:
+                return CommandStatus.Blocked
 
-                with self._driver_lock:
-                    self._driver = driver
-                    self._handle = handle
-                    self._status = CameraStatus.Idle
-                    print('camera {} initialized'.format(self._config.camera_device_id))
-
-                with self._cooler_condition:
-                    self._cooler_condition.notify()
-
-                return CommandStatus.Succeeded
-            except Exception as e:
-                print(e)
-            finally:
-                # Clean up on failure
-                if self._status != CameraStatus.Idle:
-                    if driver is not None and handle is not None:
-                        driver.CloseQHYCCD(handle)
-
-                    self._status = CameraStatus.Disabled
-                    log.error(self._config.log_name, 'Failed to initialize camera')
-                else:
-                    log.info(self._config.log_name, 'Initialized camera')
-
-                driver.ReleaseQHYCCDResource()
+            return self.qhy_command('gain', offset=offset, quiet=quiet)
 
     @Pyro4.expose
     def configure(self, params, quiet=False):
@@ -692,150 +213,21 @@ class CameraDaemon:
             if not success:
                 return CommandStatus.Blocked
 
-            if self._status == CameraStatus.Disabled:
-                return CommandStatus.CameraNotInitialized
+            temperature = params.get('temperature', self._config.cooler_setpoint)
+            self.qhy_command('temperature', temperature=temperature, quiet=quiet)
 
-            if self._status != CameraStatus.Idle:
-                return CommandStatus.CameraNotIdle
+            exposure = params.get('exposure', 1)
+            self.qhy_command('exposure', exposure=exposure, quiet=quiet)
 
-            # Reset cooling
-            self._cooler_setpoint = params.get('temperature', self._config.cooler_setpoint)
+            gain = params.get('gain', self._config.gain)
+            self.qhy_command('gain', gain=gain, quiet=quiet)
 
-            if not quiet:
-                log.info(self._config.log_name, 'Target temperature set to ' + str(self._cooler_setpoint))
+            offset = params.get('offset', self._config.offset)
+            self.qhy_command('offset', offset=offset, quiet=quiet)
 
-            # Reset exposure time
-            self._exposure_time = params.get('exposure', 1)
+            stream = params.get('stream', True)
+            self.qhy_command('stream', stream=stream, quiet=quiet)
 
-            if not quiet:
-                log.info(self._config.log_name, 'Exposure time set to {:.3f}s'.format(self._exposure_time))
-
-            self._gain = params.get('gain', self._config.gain)
-            status = self._driver.SetQHYCCDParam(self._handle, QHYControl.GAIN, c_double(self._gain))
-            if status != QHYStatus.Success:
-                print('failed to set gain with status {}'.format(status))
-                return CommandStatus.Failed
-
-            self._offset = params.get('offset', self._config.offset)
-            status = self._driver.SetQHYCCDParam(self._handle, QHYControl.OFFSET, c_double(self._offset))
-            if status != QHYStatus.Success:
-                print('failed to set offset with status {}'.format(status))
-                return CommandStatus.Failed
-
-            if not quiet:
-                log.info(self._config.log_name, 'Offset set to {}'.format(self._offset))
-
-            if not self.__set_frame_streaming(params.get('stream', True)):
-                return CommandStatus.Failed
-
-            if not quiet:
-                log.info(self._config.log_name, 'Streaming set to {}'.format(self._stream_frames))
-
-            return CommandStatus.Succeeded
-
-    @Pyro4.expose
-    def set_exposure(self, seconds, quiet=False):
-        """Set the exposure time in seconds"""
-        if not pyro_client_matches(self._config.control_ips):
-            return CommandStatus.InvalidControlIP
-
-        with TryLock(self._command_lock) as success:
-            if not success:
-                return CommandStatus.Blocked
-
-            if self._status == CameraStatus.Disabled:
-                return CommandStatus.CameraNotInitialized
-
-            if self._status != CameraStatus.Idle:
-                return CommandStatus.CameraNotIdle
-
-            self._exposure_time = seconds
-
-            if not quiet:
-                log.info(self._config.log_name, 'Exposure time set to {:.3f}s'.format(seconds))
-            return CommandStatus.Succeeded
-
-    @Pyro4.expose
-    def set_gain(self, gain, quiet=False):
-        """Set the sensor gain value"""
-        if not pyro_client_matches(self._config.control_ips):
-            return CommandStatus.InvalidControlIP
-
-        with TryLock(self._command_lock) as success:
-            if not success:
-                return CommandStatus.Blocked
-
-            if self._status == CameraStatus.Disabled:
-                return CommandStatus.CameraNotInitialized
-
-            if self._status != CameraStatus.Idle:
-                return CommandStatus.CameraNotIdle
-
-            status = self._driver.SetQHYCCDParam(self._handle, QHYControl.GAIN, c_double(gain))
-            if status != QHYStatus.Success:
-                print('failed to set gain with status {}'.format(status))
-                return CommandStatus.Failed
-
-            self._gain = gain
-
-            if not quiet:
-                log.info(self._config.log_name, 'Gain set to {}'.format(gain))
-            return CommandStatus.Succeeded
-
-    @Pyro4.expose
-    def set_offset(self, offset, quiet=False):
-        """Set the sensor bias offset"""
-        if not pyro_client_matches(self._config.control_ips):
-            return CommandStatus.InvalidControlIP
-
-        with TryLock(self._command_lock) as success:
-            if not success:
-                return CommandStatus.Blocked
-
-            if self._status == CameraStatus.Disabled:
-                return CommandStatus.CameraNotInitialized
-
-            if self._status != CameraStatus.Idle:
-                return CommandStatus.CameraNotIdle
-
-            status = self._driver.SetQHYCCDParam(self._handle, QHYControl.OFFSET, c_double(offset))
-            if status != QHYStatus.Success:
-                print('failed to set offset with status {}'.format(status))
-                return CommandStatus.Failed
-
-            self._offset = offset
-
-            if not quiet:
-                log.info(self._config.log_name, 'Offset set to {}'.format(offset))
-            return CommandStatus.Succeeded
-
-    @Pyro4.expose
-    def shutdown(self):
-        """Disconnects from the camera driver"""
-        if not pyro_client_matches(self._config.control_ips):
-            return CommandStatus.InvalidControlIP
-
-        with TryLock(self._command_lock) as success:
-            if not success:
-                return CommandStatus.Blocked
-
-            if self._status == CameraStatus.Disabled:
-                return CommandStatus.CameraNotInitialized
-
-            # Complete the current exposure
-            if self._acquisition_thread is not None:
-                with self._driver_lock:
-                    self._driver.CancelQHYCCDExposingAndReadout(self._handle)
-                print('shutdown: waiting for acquisition to complete')
-                self._stop_acquisition = True
-                self._acquisition_thread.join()
-
-            with self._driver_lock:
-                print('shutdown: disconnecting driver')
-                self._driver.CloseQHYCCD(self._handle)
-                self._driver = None
-
-            log.info(self._config.log_name, 'Shutdown camera')
             return CommandStatus.Succeeded
 
     @Pyro4.expose
@@ -848,57 +240,15 @@ class CameraDaemon:
             if not success:
                 return CommandStatus.Blocked
 
-            if self._status == CameraStatus.Disabled:
-                return CommandStatus.CameraNotInitialized
-
-            if self._status != CameraStatus.Idle:
-                return CommandStatus.CameraNotIdle
-
-            print('starting exposure sequence')
-            count_msg = 'until stopped'
-            if count == 1:
-                count_msg = '1 frame'
-            elif count > 1:
-                count_msg = str(count) + ' frames'
-
-            if not quiet:
-                log.info(self._config.log_name, 'Starting exposure sequence (' + count_msg + ')')
-
-            self._sequence_frame_limit = count
-            self._sequence_frame_count = 0
-            self._stop_acquisition = False
-            self._log_acquisition_status = not quiet
-            self._acquisition_thread = threading.Thread(target=self.__run_exposure_sequence)
-            self._acquisition_thread.daemon = False
-            self._acquisition_thread.start()
-            self._status = CameraStatus.Acquiring
-
-            return CommandStatus.Succeeded
+            return self.qhy_command('start', count=count, quiet=quiet)
 
     @Pyro4.expose
-    def stop_sequence(self):
+    def stop_sequence(self, quiet=False):
         """Stops any active exposure sequence"""
         if not pyro_client_matches(self._config.control_ips):
             return CommandStatus.InvalidControlIP
 
-        if self._status == CameraStatus.Disabled:
-            return CommandStatus.CameraNotInitialized
-
-        # Note that the Waiting, Reading, Aborting, statuses are artificial
-        # self._status stays as CameraStatus.Acquiring during both of these
-        if self._status != CameraStatus.Acquiring or self._stop_acquisition:
-            return CommandStatus.CameraNotAcquiring
-
-        print('aborting exposure sequence')
-        log.info(self._config.log_name, 'Aborting exposure sequence')
-
-        self._sequence_frame_count = 0
-        self._stop_acquisition = True
-
-        with self._exposure_delay_condition:
-            self._exposure_delay_condition.notify_all()
-
-        return CommandStatus.Succeeded
+        return self.qhy_command('stop', quiet=quiet)
 
 
 if __name__ == '__main__':

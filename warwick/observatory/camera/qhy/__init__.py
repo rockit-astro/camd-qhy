@@ -20,3 +20,4 @@ from .config import Config
 from .constants import CommandStatus, CameraStatus, CoolerMode
 from .validation import configure_validation_schema
 from .outputprocess import output_process
+from .qhyprocess import qhy_process
