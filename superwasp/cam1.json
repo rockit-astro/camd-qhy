@@ -8,7 +8,7 @@
   "cooler_setpoint": 0,
   "cooler_update_delay": 5,
   "cooler_pwm_step": 3,
-  "worker_processes": 2,
+  "worker_processes": 1,
   "mode": 0,
   "gain": 26,
   "offset": 30,
