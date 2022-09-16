@@ -77,7 +77,9 @@ def open_device(driver, camera_device_id):
 
 
 class QHYInterface:
-    def __init__(self, config, processing_queue, processing_stop_signal):
+    def __init__(self, config, processing_queue,
+                 processing_framebuffer, processing_framebuffer_offsets,
+                 processing_stop_signal):
         self._config = config
 
         self._handle = c_void_p()
@@ -151,6 +153,14 @@ class QHYInterface:
         self._processing_queue = processing_queue
         self._processing_stop_signal = processing_stop_signal
 
+        # A large block of shared memory for sending frame data to the processing workers
+        self._processing_framebuffer = processing_framebuffer
+
+        # A queue of memory offsets that are available to write frame data into
+        # Offsets are popped from the queue as new frames are written into the
+        # frame buffer, and pushed back on as processing is complete
+        self._processing_framebuffer_offsets = processing_framebuffer_offsets
+
     @property
     def is_acquiring(self):
         return self._acquisition_thread is not None and self._acquisition_thread.is_alive()
@@ -209,6 +219,7 @@ class QHYInterface:
         """Worker thread that acquires frames and their times.
            Tagged frames are pushed to the acquisition queue
            for further processing on another thread"""
+        framebuffer_slots = 0
         try:
             with self._driver_lock:
                 exp = c_double(int(1e6 * self._exposure_time))
@@ -217,6 +228,19 @@ class QHYInterface:
             if status != QHYStatus.Success:
                 log.error(self._config.log_name, f'Failed to set exposure time ({status})')
                 return
+
+            # Prepare the framebuffer offsets
+            if not self._processing_framebuffer_offsets.empty():
+                log.error(self._config.log_name, 'Frame buffer offsets queue is not empty!')
+                return
+
+            # NOTE: this references ushort array index, which is half the underlying byte offset
+            offset = 0
+            frame_size = self._readout_width * self._readout_height
+            while offset + frame_size <= len(self._processing_framebuffer):
+                self._processing_framebuffer_offsets.put(offset)
+                offset += frame_size
+                framebuffer_slots += 1
 
             if self._stream_frames:
                 with self._driver_lock:
@@ -233,6 +257,12 @@ class QHYInterface:
             lines_per_frame = c_uint32()
             actual_exposure_us = c_uint32()
             is_long_exposure = c_uint8()
+            row = c_uint32(0)
+            readout_offset_us = c_double()
+            width = c_uint32(self._readout_width)
+            height = c_uint32(self._readout_height)
+            bpp = c_uint32(16)
+            channels = c_uint32(1)
 
             with self._driver_lock:
                 self._driver.GetQHYCCDPreciseExposureInfo(self._handle,
@@ -244,8 +274,6 @@ class QHYInterface:
                                                           byref(actual_exposure_us),
                                                           byref(is_long_exposure))
 
-            row = c_uint32(0)
-            readout_offset_us = c_double()
             with self._driver_lock:
                 self._driver.GetQHYCCDRollingShutterEndOffset(self._handle, row, byref(readout_offset_us))
 
@@ -259,14 +287,8 @@ class QHYInterface:
                         log.error(self._config.log_name, f'Failed to start exposure sequence ({status})')
                         break
 
-                pixel_count = self._readout_width * self._readout_height
-                framedata = bytearray(pixel_count * 2)
-
-                width = c_uint32(self._readout_width)
-                height = c_uint32(self._readout_height)
-                bpp = c_uint32(16)
-                channels = c_uint32(1)
-                cdata = (c_uint16 * pixel_count).from_buffer(framedata)
+                framebuffer_offset = self._processing_framebuffer_offsets.get()
+                cdata = (c_uint8 * frame_size).from_buffer(self._processing_framebuffer, 2 * framebuffer_offset)
 
                 if self._stream_frames:
                     status = QHYStatus.Error
@@ -292,7 +314,9 @@ class QHYInterface:
                 read_end_time = Time.now()
 
                 self._processing_queue.put({
-                    'data': np.frombuffer(framedata, dtype=np.uint16).reshape((height.value, width.value)),
+                    'data_offset': framebuffer_offset,
+                    'data_width': self._readout_width,
+                    'data_height': self._readout_height,
                     'requested_exposure': float(self._exposure_time),
                     'exposure': actual_exposure_us.value / 1e6,
                     'lineperiod': line_period_ns.value / 1e9,
@@ -340,6 +364,10 @@ class QHYInterface:
                     'exposure_count': self._exposure_count,
                     'exposure_reference': self._exposure_count_reference,
                 }, outfile)
+
+            # Wait for processing to complete
+            for _ in range(framebuffer_slots):
+                self._processing_framebuffer_offsets.get()
 
             if not quiet:
                 log.info(self._config.log_name, 'Exposure sequence complete')
@@ -709,8 +737,10 @@ class QHYInterface:
         return CommandStatus.Succeeded
 
 
-def qhy_process(camd_pipe, config, process_queue, stop_signal):
-    cam = QHYInterface(config, process_queue, stop_signal)
+def qhy_process(camd_pipe, config,
+                processing_queue, processing_framebuffer, processing_framebuffer_offsets,
+                stop_signal):
+    cam = QHYInterface(config, processing_queue, processing_framebuffer, processing_framebuffer_offsets, stop_signal)
     ret = cam.initialize()
 
     # Clear any UVLO errors on first connection

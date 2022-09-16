@@ -24,6 +24,7 @@ import shutil
 from astropy.io import fits
 from astropy.time import Time
 import astropy.units as u
+import numpy as np
 from warwick.observatory.common import daemons, log
 from .constants import CoolerMode
 
@@ -92,7 +93,8 @@ class GPSData(Structure):
         return int.from_bytes(self._PPSDelta, byteorder='big', signed=False)
 
 
-def output_process(process_queue, stop_signal, camera_id, camera_device_id, use_gpsbox,
+def output_process(process_queue, processing_framebuffer, processing_framebuffer_offsets, stop_signal,
+                   camera_id, camera_device_id, use_gpsbox,
                    filter_name, header_card_capacity, output_path, log_name,
                    pipeline_daemon_name, pipeline_handover_timeout, software_version):
     """
@@ -104,12 +106,15 @@ def output_process(process_queue, stop_signal, camera_id, camera_device_id, use_
     while True:
         frame = process_queue.get()
 
+        data = np.frombuffer(processing_framebuffer, dtype=np.uint16,
+                             offset=2*frame['data_offset'], count=frame['data_height'] * frame['data_width']) \
+            .reshape((frame['data_height'], frame['data_width'])).copy()
+        processing_framebuffer_offsets.put(frame['data_offset'])
+
         # Estimate frame end time based on when we finished reading out
         # line period is given in nanoseconds
-        # TODO: Calibrate from GPS box offsets
         # HACK: on SDK version 22.02.17 frames over USB appear to be delayed by an extra frame period
-        # TODO: Test if this is true for PCIE
-        end_offset = -frame['lineperiod'] * 6422 / 1e9 - frame['frameperiod']
+        end_offset = -frame['lineperiod'] * frame['data_height'] / 1e9 - frame['frameperiod']
         start_offset = end_offset - frame['exposure']
         end_time = (frame['read_end_time'] + end_offset * u.s).strftime('%Y-%m-%dT%H:%M:%S.%f')
         start_time = (frame['read_end_time'] + start_offset * u.s).strftime('%Y-%m-%dT%H:%M:%S.%f')
@@ -122,13 +127,13 @@ def output_process(process_queue, stop_signal, camera_id, camera_device_id, use_
 
         if use_gpsbox:
             # Parse timestamps out of the first row of pixel data
-            # The GPS box and data protocol seem have been designed for a global shutter camera,
+            # The GPS box and data protocol seem to have been designed for a global shutter camera,
             # so the start/end/now timestamps here actually record the rising and falling edge
             # of the 0.4us long VSYNC signal and the start/end values are meaningless.
             # SDK versions >= 22.02.17 add precision timing APIs to calculate the relative offsets
             # to the first image row.
 
-            gps = GPSData.from_address(frame['data'].ctypes.data)
+            gps = GPSData.from_address(data.ctypes.data)
             vsync_timestamp = GPSData.create_timestamp(gps.NowSeconds, gps.NowCounts)
             vsync_status = GPSData.create_status(gps.NowFlag)
 
@@ -212,7 +217,7 @@ def output_process(process_queue, stop_signal, camera_id, camera_device_id, use_
             ('EXPCREF', frame['exposure_count_reference'], 'date the exposure counter was reset'),
         ] + gps_header
 
-        hdu = fits.PrimaryHDU(frame['data'])
+        hdu = fits.PrimaryHDU(data)
 
         # Using Card and append() to force comment cards to be placed inline
         for h in header:

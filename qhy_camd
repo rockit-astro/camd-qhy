@@ -27,6 +27,7 @@
 import argparse
 from ctypes import c_bool
 from multiprocessing import Process, Queue, Value, Pipe
+from multiprocessing.sharedctypes import RawArray
 import threading
 import Pyro4
 from warwick.observatory.common import TryLock
@@ -52,11 +53,14 @@ class CameraDaemon:
 
         # Subprocesses for processing acquired frames
         self._processing_queue = Queue()
+        self._processing_framebuffer = RawArray('H', (config.framebuffer_bytes + 1) // 2)
+        self._processing_framebuffer_offsets = Queue()
         self._processing_stop_signal = Value(c_bool, False)
 
         for _ in range(config.worker_processes):
             Process(target=output_process, daemon=True, args=(
-                self._processing_queue, self._processing_stop_signal, config.camera_id, config.camera_device_id,
+                self._processing_queue, self._processing_framebuffer, self._processing_framebuffer_offsets,
+                self._processing_stop_signal, config.camera_id, config.camera_device_id,
                 config.use_gpsbox, config.filter, config.header_card_capacity, config.output_path, config.log_name,
                 config.pipeline_daemon_name, config.pipeline_handover_timeout, SOFTWARE_VERSION)).start()
 
@@ -93,7 +97,9 @@ class CameraDaemon:
                 self._qhy_pipe, camd_pipe = Pipe()
                 self._qhy_process = Process(target=qhy_process, args=(
                     camd_pipe, self._config,
-                    self._processing_queue, self._processing_stop_signal
+                    self._processing_queue,
+                    self._processing_framebuffer, self._processing_framebuffer_offsets,
+                    self._processing_stop_signal
                 ), daemon=True)
 
                 self._qhy_process.start()

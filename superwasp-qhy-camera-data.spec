@@ -1,5 +1,5 @@
 Name:      superwasp-qhy-camera-data
-Version:   20220802
+Version:   20220916
 Release:   0
 Url:       https://github.com/warwick-one-metre/qhy-camd
 Summary:   Camera configuration for the SuperWASP telescope.
