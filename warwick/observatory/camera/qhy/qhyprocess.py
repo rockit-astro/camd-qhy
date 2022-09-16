@@ -226,6 +226,29 @@ class QHYInterface:
                     log.error(self._config.log_name, f'Failed to start exposures ({status})')
                     return
 
+            pixel_period_ps = c_uint32()
+            line_period_ns = c_uint32()
+            frame_period_us = c_uint32()
+            clocks_per_line = c_uint32()
+            lines_per_frame = c_uint32()
+            actual_exposure_us = c_uint32()
+            is_long_exposure = c_uint8()
+
+            with self._driver_lock:
+                self._driver.GetQHYCCDPreciseExposureInfo(self._handle,
+                                                          byref(pixel_period_ps),
+                                                          byref(line_period_ns),
+                                                          byref(frame_period_us),
+                                                          byref(clocks_per_line),
+                                                          byref(lines_per_frame),
+                                                          byref(actual_exposure_us),
+                                                          byref(is_long_exposure))
+
+            row = c_uint32(0)
+            readout_offset_us = c_double()
+            with self._driver_lock:
+                self._driver.GetQHYCCDRollingShutterEndOffset(self._handle, row, byref(readout_offset_us))
+
             while not self._stop_acquisition and not self._processing_stop_signal.value:
                 self._sequence_exposure_start_time = Time.now()
                 if not self._stream_frames:
@@ -266,28 +289,6 @@ class QHYInterface:
                 if self._stop_acquisition or self._processing_stop_signal.value:
                     break
 
-                pixel_period_ps = c_uint32()
-                line_period_ns = c_uint32()
-                frame_period_us = c_uint32()
-                clocks_per_line = c_uint32()
-                lines_per_frame = c_uint32()
-                actual_exposure_us = c_uint32()
-                is_long_exposure = c_uint8()
-
-                with self._driver_lock:
-                    self._driver.GetQHYCCDPreciseExposureInfo(self._handle,
-                                                              byref(pixel_period_ps),
-                                                              byref(line_period_ns),
-                                                              byref(frame_period_us),
-                                                              byref(clocks_per_line),
-                                                              byref(lines_per_frame),
-                                                              byref(actual_exposure_us),
-                                                              byref(is_long_exposure))
-
-                row = c_uint32(0)
-                readout_offset_us = c_double()
-                with self._driver_lock:
-                    self._driver.GetQHYCCDRollingShutterEndOffset(self._handle, row, byref(readout_offset_us))
                 read_end_time = Time.now()
 
                 self._processing_queue.put({
