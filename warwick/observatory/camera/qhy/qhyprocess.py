@@ -323,14 +323,6 @@ class QHYInterface:
                 })
 
                 self._exposure_count += 1
-
-                # Save updated counts to disk
-                with open(self._counter_filename, 'w', encoding='ascii') as outfile:
-                    json.dump({
-                        'exposure_count': self._exposure_count,
-                        'exposure_reference': self._exposure_count_reference,
-                    }, outfile)
-
                 self._sequence_frame_count += 1
 
                 # Continue exposure sequence?
@@ -341,6 +333,13 @@ class QHYInterface:
                 with self._driver_lock:
                     self._driver.CancelQHYCCDExposingAndReadout(self._handle)
                     self._driver.StopQHYCCDLive(self._handle)
+
+            # Save updated counts to disk
+            with open(self._counter_filename, 'w', encoding='ascii') as outfile:
+                json.dump({
+                    'exposure_count': self._exposure_count,
+                    'exposure_reference': self._exposure_count_reference,
+                }, outfile)
 
             if not quiet:
                 log.info(self._config.log_name, 'Exposure sequence complete')
