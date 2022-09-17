@@ -79,6 +79,9 @@ def status(config, *_):
 
         print('   Exposure time is ' + TFmt.Bold + '{:.3f} s'.format(data['exposure_time']) + TFmt.Clear)
 
+        window = '[{}:{},{}:{}]'.format(data['window'][0] + 1, data['window'][1] + 1,
+                                        data['window'][2] + 1, data['window'][3] + 1)
+        print('   Crop window is ' + TFmt.Bold + window + TFmt.Clear)
     return 0
 
 
@@ -112,6 +115,25 @@ def set_gain(config, camera_ids, args):
         with config.daemon.connect() as camd:
             return camd.set_gain(gain)
     print('usage: {} [{}] gain <value>'.format(SCRIPT_NAME, '|'.join(camera_ids)))
+    return -1
+
+
+def set_window(config, camera_ids, args):
+    """Set the camera readout window"""
+    window = None
+    if len(args) == 4:
+        window = [
+            int(args[0]),
+            int(args[1]),
+            int(args[2]),
+            int(args[3])
+        ]
+
+    if window or (len(args) == 1 and args[0] == 'default'):
+        with config.daemon.connect() as camd:
+            return camd.set_window(window)
+
+    print('usage: {} [{}] window (<x1> <x2> <y1> <y2>|default)'.format(SCRIPT_NAME, '|'.join(camera_ids)))
     return -1
 
 
@@ -210,6 +232,7 @@ if __name__ == '__main__':
     commands = {
         'temperature': set_temperature,
         'exposure': set_exposure,
+        'window': set_window,
         'gain': set_gain,
         'offset': set_offset,
         'stream': set_streaming,

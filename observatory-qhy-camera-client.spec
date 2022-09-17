@@ -1,5 +1,5 @@
 Name:      observatory-qhy-camera-client
-Version:   20220906
+Version:   20220917
 Release:   0
 Url:       https://github.com/warwick-one-metre/qhy-camd
 Summary:   Control client for QHY600 CMOS camera

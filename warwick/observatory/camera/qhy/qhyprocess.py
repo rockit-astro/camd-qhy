@@ -22,7 +22,7 @@
 # pylint: disable=too-many-branches
 # pylint: disable=too-many-statements
 
-from ctypes import c_double, c_int, c_uint8, c_uint16, c_uint32, c_void_p
+from ctypes import c_double, c_int, c_uint8, c_uint32, c_void_p
 from ctypes import byref, create_string_buffer, POINTER
 import json
 import pathlib
@@ -32,7 +32,6 @@ import threading
 import traceback
 from astropy.time import Time
 import astropy.units as u
-import numpy as np
 import Pyro4
 from warwick.observatory.common import log
 from .constants import CommandStatus, CameraStatus, CoolerMode
@@ -99,11 +98,17 @@ class QHYInterface:
         # is more efficient to disable streaming and take individual exposures.
         self._stream_frames = True
 
+        # Crop output data to detector coordinates
+        self._window_region = [0, 0, 0, 0]
+
         # Image geometry (marking edges of overscan etc)
-        self._geometry_image_x1 = 0
-        self._geometry_image_x2 = 0
-        self._geometry_image_y1 = 0
-        self._geometry_image_y2 = 0
+        self._image_region = [0, 0, 0, 0]
+
+        # Overscan bias pixels
+        self._bias_region = [0, 0, 0, 0]
+
+        # Optically masked dark pixels
+        self._dark_region = [0, 0, 0, 0]
 
         self._cooler_mode = CoolerMode.Unknown
         self._cooler_setpoint = config.cooler_setpoint
@@ -321,7 +326,7 @@ class QHYInterface:
                     'exposure': actual_exposure_us.value / 1e6,
                     'lineperiod': line_period_ns.value / 1e9,
                     'frameperiod': frame_period_us.value / 1e6,
-                    'readout_offset': readout_offset_us.value,
+                    'readout_offset': readout_offset_us.value / 1e6,
                     'mode': self._config.mode,
                     'mode_name': self._mode_name,
                     'gain': self._gain,
@@ -334,14 +339,10 @@ class QHYInterface:
                     'cooler_temperature': self._cooler_temperature,
                     'cooler_pwm': self._cooler_pwm,
                     'cooler_setpoint': self._cooler_setpoint,
-                    'win_x': 1,
-                    'win_width': self._readout_width,
-                    'win_y': 1,
-                    'win_height': self._readout_height,
-                    'image_x1': self._geometry_image_x1,
-                    'image_x2': self._geometry_image_x2,
-                    'image_y1': self._geometry_image_y1,
-                    'image_y2': self._geometry_image_y2,
+                    'window_region': self._window_region,
+                    'image_region': self._image_region,
+                    'bias_region': self._bias_region,
+                    'dark_region': self._dark_region,
                     'exposure_count': self._exposure_count,
                     'exposure_count_reference': self._exposure_count_reference
                 })
@@ -526,10 +527,36 @@ class QHYInterface:
                     print(f'failed to query effective area with status {status}')
                     return CommandStatus.Failed
 
-                self._geometry_image_x1 = effective_x.value + 1
-                self._geometry_image_x2 = effective_x.value + effective_width.value
-                self._geometry_image_y1 = effective_y.value + 2 if self._config.use_gpsbox else 1
-                self._geometry_image_y2 = effective_y.value + effective_height.value
+                # Regions are 0-indexed x1,x2,y1,2
+                # These are converted to 1-indexed when writing fits headers
+                self._window_region = [
+                    0,
+                    image_width.value - 1,
+                    0,
+                    image_height.value - 1
+                ]
+
+                self._image_region = [
+                    effective_x.value,
+                    effective_x.value + effective_width.value - 1,
+                    effective_y.value + 6 if self._config.use_gpsbox else 0,
+                    effective_y.value + effective_height.value - 1
+                ]
+
+                # HACK: Hardcode based on sensor specifications
+                self._bias_region = [
+                    self._window_region[0],
+                    self._window_region[1],
+                    6390,
+                    self._window_region[3]
+                ]
+
+                self._dark_region = [
+                    self._window_region[0],
+                    21,
+                    self._window_region[2],
+                    6389
+                ]
 
                 self._driver = driver
                 self._handle = handle
@@ -603,6 +630,36 @@ class QHYInterface:
         self._exposure_time = exposure
         if not quiet:
             log.info(self._config.log_name, f'Exposure time set to {exposure:.3f}s')
+
+        return CommandStatus.Succeeded
+
+    def set_window(self, window, quiet):
+        """Set the camera crop window"""
+        if self.is_acquiring:
+            return CommandStatus.CameraNotIdle
+
+        if window is None:
+            self._window_region = [0, self._readout_width - 1, 0, self._readout_height - 1]
+
+        elif len(window) == 4:
+            if window[0] < 1 or window[0] > self._readout_width:
+                return CommandStatus.WindowOutsideSensor
+            if window[1] < window[0] or window[1] > self._readout_width:
+                return CommandStatus.WindowOutsideSensor
+            if window[2] < 1 or window[2] > self._readout_height:
+                return CommandStatus.WindowOutsideSensor
+            if window[3] < window[2] or window[3] > self._readout_height:
+                return CommandStatus.WindowOutsideSensor
+
+            # Convert from 1-indexed to 0-indexed
+            self._window_region = [x - 1 for x in window]
+
+        else:
+            return CommandStatus.Failed
+
+        if not quiet:
+            w = [x + 1 for x in self._window_region]
+            log.info(self._config.log_name, f'Window set to [{w[0]}:{w[1]},{w[2]}:{w[3]}]')
 
         return CommandStatus.Succeeded
 
@@ -714,6 +771,7 @@ class QHYInterface:
             'temperature_locked': self._cooler_mode == CoolerMode.Locked,  # used by opsd
             'exposure_time': self._exposure_time,
             'exposure_progress': exposure_progress,
+            'window': self._window_region,
             'sequence_frame_limit': self._sequence_frame_limit,
             'sequence_frame_count': sequence_frame_count,
         }
@@ -772,6 +830,8 @@ def qhy_process(camd_pipe, config,
                     camd_pipe.send(cam.set_offset(args['offset'], args['quiet']))
                 elif command == 'exposure':
                     camd_pipe.send(cam.set_exposure(args['exposure'], args['quiet']))
+                elif command == 'window':
+                    camd_pipe.send(cam.set_window(args['window'], args['quiet']))
                 elif command == 'start':
                     camd_pipe.send(cam.start_sequence(args['count'], args['quiet']))
                 elif command == 'stop':

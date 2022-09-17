@@ -17,6 +17,7 @@
 """Helper process for preparing and saving fits images"""
 
 # pylint: disable=too-many-arguments
+# pylint: disable=too-many-branches
 
 from ctypes import c_uint8, c_uint16, c_uint32, Structure
 import os.path
@@ -93,6 +94,23 @@ class GPSData(Structure):
         return int.from_bytes(self._PPSDelta, byteorder='big', signed=False)
 
 
+def window_sensor_region(region, window):
+    """Calculate new region coordinates when cropped to a given window"""
+    x1 = max(0, region[0] - window[0])
+    x2 = min(region[1] - window[0], window[1] - window[0])
+    y1 = max(0, region[2] - window[2])
+    y2 = min(region[3] - window[2], window[3] - window[2])
+    if x1 > x2 or y1 > y2:
+        return None
+
+    return [x1, x2, y1, y2]
+
+
+def format_sensor_region(region):
+    """Format a 0-indexed region as a 1-indexed fits region"""
+    return f'[{region[0] + 1}:{region[1] + 1},{region[2] + 1}:{region[3] + 1}]'
+
+
 def output_process(process_queue, processing_framebuffer, processing_framebuffer_offsets, stop_signal,
                    camera_id, camera_device_id, use_gpsbox,
                    filter_name, header_card_capacity, output_path, log_name,
@@ -112,15 +130,14 @@ def output_process(process_queue, processing_framebuffer, processing_framebuffer
         processing_framebuffer_offsets.put(frame['data_offset'])
 
         # Estimate frame end time based on when we finished reading out
-        # line period is given in nanoseconds
-        # HACK: on SDK version 22.02.17 frames over USB appear to be delayed by an extra frame period
-        end_offset = -frame['lineperiod'] * frame['data_height'] / 1e9 - frame['frameperiod']
+        # Line period is given in nanoseconds
+        end_offset = -frame['lineperiod'] * (frame['data_height'] - 2 * (frame['window_region'][2] // 2))
         start_offset = end_offset - frame['exposure']
         end_time = (frame['read_end_time'] + end_offset * u.s).strftime('%Y-%m-%dT%H:%M:%S.%f')
         start_time = (frame['read_end_time'] + start_offset * u.s).strftime('%Y-%m-%dT%H:%M:%S.%f')
         date_header = [
-            ('DATE-OBS', start_time, '[utc] estimated row 0 exposure start time'),
-            ('DATE-END', end_time, '[utc] estimated row 0 exposure end time'),
+            ('DATE-OBS', start_time, '[utc] estimated image row 0 exposure start time'),
+            ('DATE-END', end_time, '[utc] estimated image row 0 exposure end time'),
             ('TIME-SRC', 'NTP', 'DATE-OBS is estimated from NTP-synced PC clock'),
         ]
         gps_header = []
@@ -138,7 +155,8 @@ def output_process(process_queue, processing_framebuffer, processing_framebuffer
             vsync_status = GPSData.create_status(gps.NowFlag)
 
             if vsync_status == 'LOCKED':
-                end_seconds = gps.NowSeconds + frame['readout_offset'] / 1e6
+                end_seconds = gps.NowSeconds + frame['readout_offset'] + \
+                              frame['lineperiod'] * 2 * (frame['window_region'][2] // 2)
                 start_time = GPSData.create_timestamp(end_seconds - frame['exposure'], gps.NowCounts)
                 end_time = GPSData.create_timestamp(end_seconds, gps.NowCounts)
                 date_header = [
@@ -158,8 +176,34 @@ def output_process(process_queue, processing_framebuffer, processing_framebuffer
                 ('GPS-PPSD', gps.PPSDelta, 'number of oscillator counts between PPS pulses')
             ]
 
-            # Enabling the GPS box overwrites the first 5 rows of image data
-            frame['image_y1'] += 5
+        # Crop data to window
+        image_region = window_sensor_region(frame['image_region'], frame['window_region'])
+        bias_region = window_sensor_region(frame['bias_region'], frame['window_region'])
+        dark_region = window_sensor_region(frame['dark_region'], frame['window_region'])
+
+        if image_region is not None:
+            image_region_header = ('IMAG-RGN', format_sensor_region(image_region),
+                                   '[x1:x2,y1:y2] image region (image coords)')
+        else:
+            image_region_header = ('COMMENT', ' IMAG-RGN not available', '')
+
+        if bias_region is not None:
+            bias_region_header = ('BIAS-RGN', format_sensor_region(bias_region),
+                                  '[x1:x2,y1:y2] overscan region (image coords)')
+        else:
+            bias_region_header = ('COMMENT', ' BIAS-RGN not available', '')
+
+        if dark_region is not None:
+            dark_region_header = ('DARK-RGN', format_sensor_region(dark_region),
+                                  '[x1:x2,y1:y2] masked dark region (image coords)')
+        else:
+            dark_region_header = ('COMMENT', ' DARK-RGN not available', '')
+
+        if image_region != frame['image_region']:
+            # Crop output data
+            # NOTE: Rolling shutter correction is handled in the branches above
+            w = frame['window_region']
+            data = data[w[2]:w[3] + 1, w[0]:w[1] + 1]
 
         if frame['cooler_setpoint'] is not None:
             setpoint_header = ('TEMP-SET', frame['cooler_setpoint'], '[deg c] cmos temperature set point')
@@ -196,23 +240,11 @@ def output_process(process_queue, processing_framebuffer, processing_framebuffer
             ('TEMP-LCK', frame['cooler_mode'] == CoolerMode.Locked, 'cmos temperature is locked to set point'),
             ('CAM-XBIN', 1, '[px] x binning'),
             ('CAM-YBIN', 1, '[px] y binning'),
-            ('CAM-WIND', '[{}:{},{}:{}]'.format(
-                frame['win_x'], frame['win_x'] + frame['win_width'] - 1,
-                frame['win_y'], frame['win_y'] + frame['win_height'] - 1),
+            ('CAM-WIND', format_sensor_region(frame['window_region']),
              '[x1:x2,y1:y2] readout region (detector coords)'),
-            ('IMAG-RGN', '[{}:{},{}:{}]'.format(
-                frame['image_x1'], frame['image_x2'],
-                frame['image_y1'], frame['image_y2']),
-             '[x1:x2,y1:y2] image region (image coords)'),
-            # TODO: These will need to change if windowing is implemented!
-            ('BIAS-RGN', '[{}:{},{}:{}]'.format(
-                1, 9600,
-                6391, 6422),
-             '[x1:x2,y1:y2] overscan region (image coords)'),
-            ('DARK-RGN', '[{}:{},{}:{}]'.format(
-                1, 22,
-                1, 6388),
-             '[x1:x2,y1:y2] masked dark region (image coords)'),
+            image_region_header,
+            bias_region_header,
+            dark_region_header,
             ('EXPCNT', frame['exposure_count'], 'running exposure count since EXPCREF'),
             ('EXPCREF', frame['exposure_count_reference'], 'date the exposure counter was reset'),
         ] + gps_header

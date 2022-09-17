@@ -39,7 +39,7 @@ class CommandStatus:
     CameraNotAcquiring = 15
 
     TemperatureOutsideLimits = 20
-    WindowOutsideCCD = 32
+    WindowOutsideSensor = 32
 
     _messages = {
         # General error codes
@@ -55,7 +55,7 @@ class CommandStatus:
         15: 'error: camera is not acquiring',
 
         20: 'error: requested temperature is outside the supported limits',
-        32: 'error: window extends outside the bounds of the ccd',
+        32: 'error: window extends outside the bounds of the sensor',
 
         -100: 'error: terminated by user',
         -101: 'error: unable to communicate with camera daemon',

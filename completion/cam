@@ -8,12 +8,15 @@ _cam()
     prevprev="${COMP_WORDS[COMP_CWORD-2]}"
 
     if [[ "${prevprev}" == "cam" ]]; then
-        opts="status exposure start init temperature kill"
+        opts="status exposure window start init temperature kill"
     else
         opts=$(cam list-cameras)
         case "${prev}" in
             start)
                 opts="continuous"
+                ;;
+            window)
+                opts="default"
                 ;;
             *)
                 ;;
