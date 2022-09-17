@@ -848,7 +848,7 @@ def qhy_process(camd_pipe, config,
             if temperature_dirty or dt > config.cooler_update_delay * u.s:
                 cam.update_cooler()
                 last_cooler_update = Time.now()
-    except:
+    except Exception:
         traceback.print_exc(file=sys.stdout)
         camd_pipe.send(CommandStatus.Failed)
 

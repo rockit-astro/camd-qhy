@@ -57,31 +57,30 @@ def status(config, *_):
 
     state_desc = CameraStatus.label(data['state'], True)
     if data['state'] == CameraStatus.Acquiring:
-        progress = '{:.1f} / {:.1f}s'.format(data['exposure_progress'], data['exposure_time'])
+        progress = f'{data["exposure_progress"]:.1f} / {data["exposure_time"]:.1f}s'
         state_desc += ' (' + TFmt.Bold + progress + TFmt.Clear + ')'
 
     # Camera is disabled
-    print('   Camera is {}'.format(state_desc))
+    print(f'   Camera is {state_desc}')
     if data['state'] != CameraStatus.Disabled:
         if data['state'] > CameraStatus.Idle:
             if data['sequence_frame_limit'] > 0:
-                print('   Acquiring frame ' + TFmt.Bold + str(data['sequence_frame_count'] + 1) +
-                      ' / ' + str(data['sequence_frame_limit']) + TFmt.Clear)
+                print(f'   Acquiring frame {TFmt.Bold}{data["sequence_frame_count"] + 1}' +
+                      f' / {data["sequence_frame_limit"]}{TFmt.Clear}')
             else:
-                print('   Acquiring ' + TFmt.Bold + 'UNTIL STOPPED' + TFmt.Clear)
+                print(f'   Acquiring {TFmt.Bold}UNTIL STOPPED{TFmt.Clear}')
 
-        print('   Temperature is ' + TFmt.Bold + '{:.0f}\u00B0C'.format(data['cooler_temperature']) + TFmt.Clear +
-              ' (' + TFmt.Bold + '{:.0f}'.format(data['cooler_pwm']) + TFmt.Clear + '% power, ' +
+        print(f'   Temperature is {TFmt.Bold}{data["cooler_temperature"]:.0f}\u00B0C{TFmt.Clear}' +
+              f' ({TFmt.Bold}{data["cooler_pwm"]:.0f}{TFmt.Clear}% power, ' +
               CoolerMode.label(data['cooler_mode'], True) + ')')
 
         if data['cooler_setpoint'] is not None:
-            print('   Temperature set point is ' + TFmt.Bold + '{:.0f}\u00B0C'.format(data['cooler_setpoint']) + TFmt.Clear)
+            print(f'   Temperature set point is {TFmt.Bold}{data["cooler_setpoint"]:.0f}\u00B0C{TFmt.Clear}')
 
-        print('   Exposure time is ' + TFmt.Bold + '{:.3f} s'.format(data['exposure_time']) + TFmt.Clear)
+        print(f'   Exposure time is {TFmt.Bold}{data["exposure_time"]:.3f} s{TFmt.Clear}')
 
-        window = '[{}:{},{}:{}]'.format(data['window'][0] + 1, data['window'][1] + 1,
-                                        data['window'][2] + 1, data['window'][3] + 1)
-        print('   Output window is ' + TFmt.Bold + window + TFmt.Clear)
+        w = [x + 1 for x in data['window']]
+        print(f'   Output window is {TFmt.Bold}[{w[0]}:{w[1]},{w[2]}:{w[3]}]{TFmt.Clear}')
     return 0
 
 
@@ -94,7 +93,7 @@ def set_temperature(config, camera_ids, args):
             temp = int(args[0])
         with config.daemon.connect() as camd:
             return camd.set_target_temperature(temp)
-    print('usage: {} [{}] temperature <degrees>'.format(SCRIPT_NAME, '|'.join(camera_ids)))
+    print(f'usage: {SCRIPT_NAME} [{"|".join(camera_ids)}] temperature <degrees>')
     return -1
 
 
@@ -104,7 +103,7 @@ def set_exposure(config, camera_ids, args):
         exposure = float(args[0])
         with config.daemon.connect() as camd:
             return camd.set_exposure(exposure)
-    print('usage: {} [{}] exposure <seconds>'.format(SCRIPT_NAME, '|'.join(camera_ids)))
+    print(f'usage: {SCRIPT_NAME} [{"|".join(camera_ids)}] exposure <seconds>')
     return -1
 
 
@@ -114,7 +113,7 @@ def set_gain(config, camera_ids, args):
         gain = int(args[0])
         with config.daemon.connect() as camd:
             return camd.set_gain(gain)
-    print('usage: {} [{}] gain <value>'.format(SCRIPT_NAME, '|'.join(camera_ids)))
+    print(f'usage: {SCRIPT_NAME} [{"|".join(camera_ids)}] gain <value>')
     return -1
 
 
@@ -133,7 +132,7 @@ def set_window(config, camera_ids, args):
         with config.daemon.connect() as camd:
             return camd.set_window(window)
 
-    print('usage: {} [{}] window (<x1> <x2> <y1> <y2>|default)'.format(SCRIPT_NAME, '|'.join(camera_ids)))
+    print(f'usage: {SCRIPT_NAME} [{"|".join(camera_ids)}] window (<x1> <x2> <y1> <y2>|default)')
     return -1
 
 
@@ -143,7 +142,7 @@ def set_streaming(config, camera_ids, args):
         enabled = args[0] == 'enable'
         with config.daemon.connect() as camd:
             return camd.set_frame_streaming(enabled)
-    print('usage: {} [{}] gain <value>'.format(SCRIPT_NAME, '|'.join(camera_ids)))
+    print(f'usage: {SCRIPT_NAME} [{"|".join(camera_ids)}] gain <value>')
     return -1
 
 
@@ -153,7 +152,7 @@ def set_offset(config, camera_ids, args):
         offset = int(args[0])
         with config.daemon.connect() as camd:
             return camd.set_offset(offset)
-    print('usage: {} [{}] offset <value>'.format(SCRIPT_NAME, '|'.join(camera_ids)))
+    print(f'usage: {SCRIPT_NAME} [{"|".join(camera_ids)}] offset <value>')
     return -1
 
 
@@ -168,7 +167,7 @@ def start(config, camera_ids, args):
         except Exception:
             print('error: invalid exposure count:', args[0])
             return -1
-    print('usage: {} [{}] start (continuous|<count>)'.format(SCRIPT_NAME, '|'.join(camera_ids)))
+    print(f'usage: {SCRIPT_NAME} [{"|".join(camera_ids)}] start (continuous|<count>)')
     return -1
 
 
@@ -193,7 +192,7 @@ def shutdown(config, *_):
 
 def print_usage(config_paths):
     """Prints the utility help"""
-    print('usage: {} [{}] <command> [<args>]'.format(SCRIPT_NAME, '|'.join(sorted(config_paths.keys()))))
+    print(f'usage: {SCRIPT_NAME} [{"|".join(sorted(config_paths.keys()))}] <command> [<args>]')
     print()
     print('general commands:')
     print('   status       print a human-readable summary of the camera status')

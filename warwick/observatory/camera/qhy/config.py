@@ -16,6 +16,8 @@
 
 """Helper function to validate and parse the json config file"""
 
+# pylint: disable=too-many-instance-attributes
+
 import json
 from warwick.observatory.common import daemons, IP, validation
 
@@ -24,8 +26,9 @@ CONFIG_SCHEMA = {
     'additionalProperties': False,
     'required': [
         'daemon', 'pipeline_daemon', 'pipeline_handover_timeout', 'log_name', 'control_machines', 'camera_device_id',
-        'camera_id', 'cooler_setpoint', 'cooler_update_delay', 'cooler_pwm_step', 'worker_processes', 'framebuffer_bytes',
-        'mode', 'gain', 'offset', 'use_gpsbox', 'filter', 'header_card_capacity', 'output_path', 'output_prefix', 'expcount_path'
+        'camera_id', 'cooler_setpoint', 'cooler_update_delay', 'cooler_pwm_step', 'worker_processes',
+        'framebuffer_bytes', 'mode', 'gain', 'offset', 'use_gpsbox', 'filter', 'header_card_capacity',
+        'output_path', 'output_prefix', 'expcount_path'
     ],
     'properties': {
         'daemon': {
@@ -119,7 +122,7 @@ class Config:
     """Daemon configuration parsed from a json file"""
     def __init__(self, config_filename):
         # Will throw on file not found or invalid json
-        with open(config_filename, 'r') as config_file:
+        with open(config_filename, 'r', encoding='utf-8') as config_file:
             config_json = json.load(config_file)
 
         # Will throw on schema violations

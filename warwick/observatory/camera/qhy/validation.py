@@ -16,6 +16,7 @@
 
 """Validation schema used by qhy-camd to verify observation schedule blocks"""
 
+# pylint: disable=unused-argument
 
 def configure_validation_schema(camera):
     """Returns a jsonschema object for validating the

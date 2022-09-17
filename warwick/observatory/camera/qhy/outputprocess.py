@@ -228,7 +228,7 @@ def output_process(process_queue, processing_framebuffer, processing_framebuffer
             ('CAMID', camera_id, 'camera identifier'),
             ('CAMERA', camera_device_id, 'camera model and serial number'),
             ('FILTER', filter_name, 'filter installed in camera path'),
-            ('CAM-MODE', frame['mode'], 'cmos read mode ({})'.format(frame['mode_name'])),
+            ('CAM-MODE', frame['mode'], f'cmos read mode ({frame["mode_name"]})'),
             ('CAM-TFER', 'STREAM' if frame['stream'] else 'SINGLE', 'frame transfer mode'),
             ('CAM-GAIN', frame['gain'], 'cmos gain setting'),
             ('CAM-OFST', frame['offset'], 'cmos offset setting'),
@@ -262,7 +262,7 @@ def output_process(process_queue, processing_framebuffer, processing_framebuffer
 
         # Save errors shouldn't interfere with preview updates, so we use a separate try/catch
         try:
-            filename = '{}-{:08d}.fits'.format(camera_id, frame['exposure_count'])
+            filename = f'{camera_id}-{frame["exposure_count"]:08d}.fits'
             path = os.path.join(output_path, filename)
 
             # Simulate an atomic write by writing to a temporary file then renaming
@@ -273,6 +273,7 @@ def output_process(process_queue, processing_framebuffer, processing_framebuffer
         except Exception as e:
             stop_signal.value = True
             log.error(log_name, 'Failed to save temporary frame (' + str(e) + ')')
+            continue
 
         # Hand frame over to the pipeline
         # This may block if the pipeline is busy
