@@ -35,12 +35,49 @@ def configure_validation_schema(camera):
                 'minimum': -15,
                 'maximum': 0,
             },
-            'cooler': {
-                'type': 'boolean'
-            },
             'exposure': {
                 'type': 'number',
                 'minimum': 0
+            },
+            'window': {
+                'type': 'array',
+                'maxItems': 4,
+                'minItems': 4,
+                'items': [
+                    {
+                        'type': 'number',
+                        'minimum': 1,
+                        'maximum': 9600,
+                    },
+                    {
+                        'type': 'number',
+                        'minimum': 1,
+                        'maximum': 9600,
+                    },
+                    {
+                        'type': 'number',
+                        'minimum': 1,
+                        'maximum': 6422,
+                    },
+                    {
+                        'type': 'number',
+                        'minimum': 1,
+                        'maximum': 6422,
+                    },
+                ]
+            },
+            'gain': {
+                'type': 'integer',
+                'min': 0,
+                'max': 100,
+            },
+            'offset': {
+                'type': 'integer',
+                'min': 0,
+                'max': 1000,
+            },
+            'stream': {
+                'type': 'boolean'
             }
         }
     }
