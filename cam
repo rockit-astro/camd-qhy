@@ -81,7 +81,7 @@ def status(config, *_):
 
         window = '[{}:{},{}:{}]'.format(data['window'][0] + 1, data['window'][1] + 1,
                                         data['window'][2] + 1, data['window'][3] + 1)
-        print('   Crop window is ' + TFmt.Bold + window + TFmt.Clear)
+        print('   Output window is ' + TFmt.Bold + window + TFmt.Clear)
     return 0
 
 
@@ -199,6 +199,10 @@ def print_usage(config_paths):
     print('   status       print a human-readable summary of the camera status')
     print('   exposure     set exposure time in seconds')
     print('   start        start an exposure sequence')
+    print('   window       set image geometry')
+    print('   gain         set cmos gain parameter')
+    print('   offset       set cmos bias parameter')
+    print('   stream       switch between single-exposure and live mode')
     print()
     print('engineering commands:')
     print('   init         connect to and initialize the camera')
