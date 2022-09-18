@@ -421,21 +421,35 @@ class QHYInterface:
                     print(f'camera {self._config.camera_device_id} was not found')
                     return CommandStatus.CameraNotFound
 
-                fwv = create_string_buffer(3)
-                status = driver.GetQHYCCDFWVersion(handle, fwv)
-                fwv = fwv.raw
-                if status == QHYStatus.Success:
-                    month = fwv[0] & ~0xf0
-                    day = fwv[1]
-                    if (fwv[0] >> 4) <= 9:
-                        year = (fwv[0] >> 4) + 0x10
-                    else:
-                        year = fwv[0] >> 4
+                if 'PCIE' in self._config.camera_device_id:
+                    # GetQHYCCDFWVersion always returns 201600 for PCIE-connected cameras.
+                    fwv = create_string_buffer(4)
+                    index = c_uint8(0)
+                    status = driver.GetQHYCCDFPGAVersion(handle, index, fwv)
+                    if status != QHYStatus.Success:
+                        print(f'failed to query FPGA version with status {status}')
+                        return CommandStatus.Failed
 
-                    self._camera_firmware_version = f'20{year}{month}{day}'
+                    year = fwv.raw[0]
+                    month = fwv.raw[1]
+                    day = fwv.raw[2]
+                    self._camera_firmware_version = f'20{year:02d}{month:02d}{day:02d}'
                 else:
-                    print(f'failed to query firmware version with status {status}')
-                    return CommandStatus.Failed
+                    fwv = create_string_buffer(3)
+                    status = driver.GetQHYCCDFWVersion(handle, fwv)
+                    fwv = fwv.raw
+                    if status == QHYStatus.Success:
+                        month = fwv[0] & ~0xf0
+                        day = fwv[1]
+                        if (fwv[0] >> 4) <= 9:
+                            year = (fwv[0] >> 4) + 0x10
+                        else:
+                            year = fwv[0] >> 4
+
+                        self._camera_firmware_version = f'20{year:02d}{month:02d}{day:02d}'
+                    else:
+                        print(f'failed to query firmware version with status {status}')
+                        return CommandStatus.Failed
 
                 status = driver.SetQHYCCDReadMode(handle, c_uint32(self._config.mode))
                 if status != QHYStatus.Success:
