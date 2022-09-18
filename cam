@@ -142,7 +142,7 @@ def set_streaming(config, camera_ids, args):
         enabled = args[0] == 'enable'
         with config.daemon.connect() as camd:
             return camd.set_frame_streaming(enabled)
-    print(f'usage: {SCRIPT_NAME} [{"|".join(camera_ids)}] gain <value>')
+    print(f'usage: {SCRIPT_NAME} [{"|".join(camera_ids)}] stream (enable|disable)')
     return -1
 
 

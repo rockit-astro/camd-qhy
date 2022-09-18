@@ -130,14 +130,19 @@ def output_process(process_queue, processing_framebuffer, processing_framebuffer
         processing_framebuffer_offsets.put(frame['data_offset'])
 
         # Estimate frame end time based on when we finished reading out
-        # Line period is given in nanoseconds
         end_offset = -frame['lineperiod'] * (frame['data_height'] - 2 * (frame['window_region'][2] // 2))
+
+        # HACK: on SDK versions 22.02.17 and later streamed frames are delayed by an extra frame period
+        # (verify by comparing GPS end-time with PC readout end time)
+        if frame['stream']:
+            end_offset -= frame['frameperiod']
+
         start_offset = end_offset - frame['exposure']
         end_time = (frame['read_end_time'] + end_offset * u.s).strftime('%Y-%m-%dT%H:%M:%S.%f')
         start_time = (frame['read_end_time'] + start_offset * u.s).strftime('%Y-%m-%dT%H:%M:%S.%f')
         date_header = [
-            ('DATE-OBS', start_time, '[utc] estimated image row 0 exposure start time'),
-            ('DATE-END', end_time, '[utc] estimated image row 0 exposure end time'),
+            ('DATE-OBS', start_time, '[utc] estimated row 0 exposure start time'),
+            ('DATE-END', end_time, '[utc] estimated row 0 exposure end time'),
             ('TIME-SRC', 'NTP', 'DATE-OBS is estimated from NTP-synced PC clock'),
         ]
         gps_header = []
