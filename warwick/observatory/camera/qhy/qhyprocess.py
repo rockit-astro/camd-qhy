@@ -314,6 +314,8 @@ class QHYInterface:
                         break
 
                 if self._stop_acquisition or self._processing_stop_signal.value:
+                    # Return unused slot back to the queue to simplify cleanup
+                    self._processing_framebuffer_offsets.put(framebuffer_offset)
                     break
 
                 read_end_time = Time.now()
