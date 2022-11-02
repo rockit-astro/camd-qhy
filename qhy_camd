@@ -115,6 +115,9 @@ class CameraDaemon:
             if not success:
                 return CommandStatus.Blocked
 
+            if self._qhy_process is None:
+                return CommandStatus.CameraNotInitialized
+
             self.qhy_command('shutdown', oneway=True)
 
             with self._qhy_lock:
