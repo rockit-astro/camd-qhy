@@ -53,8 +53,7 @@ The automated packaging scripts will push 4 RPM packages to the observatory pack
 
 The `qhy-camera-server` and `clasp-qhy-data` packages should be installed on the CLASP DAS machines, then the systemd service should be enabled:
 ```
-sudo systemctl enable qhy_camd.service@<config>
-sudo systemctl start qhy_camd@<config>
+sudo systemctl enable --now qhy_camd.service@<config>
 ```
 
 where `config` is the name of the json file for the appropriate camera.
@@ -80,8 +79,7 @@ sudo yum update
 
 The daemon should then be restarted to use the newly installed code:
 ```
-sudo systemctl stop qhy_camd@<config>
-sudo systemctl start qhy_camd@<config>
+sudo systemctl restart qhy_camd@<config>
 ```
 
 ### Testing Locally
