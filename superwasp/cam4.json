@@ -14,7 +14,7 @@
   "gain": 26,
   "offset": 30,
   "use_gpsbox": true,
-  "filter": "SWASP",
+  "filter": "i",
   "header_card_capacity": 144,
   "camera_id": "CAM4",
   "output_path": "/data/incoming",
