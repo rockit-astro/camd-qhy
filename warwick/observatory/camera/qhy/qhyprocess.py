@@ -387,7 +387,7 @@ class QHYInterface:
                 driver = WinDLL(r'C:\Program Files\QHYCCD\AllInOne\sdk\x64\qhyccd.dll')
             else:
                 from ctypes import CDLL
-                driver = CDLL('/usr/local/lib/libqhyccd.so')
+                driver = CDLL('/usr/lib64/libqhyccd.so.20')
             # pylint: enable=import-outside-toplevel
 
             driver.OpenQHYCCD.restype = POINTER(c_uint32)

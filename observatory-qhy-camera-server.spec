@@ -1,12 +1,12 @@
 Name:      observatory-qhy-camera-server
-Version:   20221102
+Version:   20230203
 Release:   0
 Url:       https://github.com/warwick-one-metre/qhy-camd
 Summary:   Control server for QHY600 CMOS camera
 License:   GPL-3.0
 Group:     Unspecified
 BuildArch: noarch
-Requires:  python3 python3-Pyro4 python3-numpy python3-astropy python3-warwick-observatory-common python3-warwick-observatory-qhy-camera
+Requires:  libqhyccd python3 python3-Pyro4 python3-numpy python3-astropy python3-warwick-observatory-common python3-warwick-observatory-qhy-camera
 
 %description
 
