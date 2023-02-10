@@ -1,5 +1,5 @@
 Name:      python3-warwick-observatory-qhy-camera
-Version:   20220921
+Version:   20230213
 Release:   0
 License:   GPL3
 Summary:   Common code for the QHY camera daemon

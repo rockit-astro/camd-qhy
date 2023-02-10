@@ -112,8 +112,7 @@ def format_sensor_region(region):
 
 
 def output_process(process_queue, processing_framebuffer, processing_framebuffer_offsets, stop_signal,
-                   camera_id, camera_device_id, use_gpsbox,
-                   filter_name, header_card_capacity, output_path, log_name,
+                   camera_id, camera_device_id, use_gpsbox, header_card_capacity, output_path, log_name,
                    pipeline_daemon_name, pipeline_handover_timeout, software_version):
     """
     Helper process to save frames to disk.
@@ -232,7 +231,7 @@ def output_process(process_queue, processing_framebuffer, processing_framebuffer
             ('FWVER', frame['firmware_version'], 'camera firmware version'),
             ('CAMID', camera_id, 'camera identifier'),
             ('CAMERA', camera_device_id, 'camera model and serial number'),
-            ('FILTER', filter_name, 'filter installed in camera path'),
+            ('FILTER', frame['filter'], 'filter in light path'),
             ('CAM-MODE', frame['mode'], f'cmos read mode ({frame["mode_name"]})'),
             ('CAM-TFER', 'STREAM' if frame['stream'] else 'SINGLE', 'frame transfer mode'),
             ('CAM-GAIN', frame['gain'], 'cmos gain setting'),

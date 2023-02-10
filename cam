@@ -81,6 +81,7 @@ def status(config, *_):
 
         w = [x + 1 for x in data['window']]
         print(f'   Output window is {TFmt.Bold}[{w[0]}:{w[1]},{w[2]}:{w[3]}]{TFmt.Clear}')
+        print(f'   Filter is {TFmt.Bold}{data["filter"]}{TFmt.Clear}')
     return 0
 
 
@@ -146,6 +147,15 @@ def set_streaming(config, camera_ids, args):
     return -1
 
 
+def set_filter(config, _, args):
+    """Set the active filter"""
+    if len(args) == 1 and (args[0] in config.filters):
+        with config.daemon.connect() as camd:
+            return camd.set_filter(args[0])
+    print(f'usage: {SCRIPT_NAME} {config.camera_id} filter [{"|".join(config.filters)}]')
+    return -1
+
+
 def set_offset(config, camera_ids, args):
     """Set the camera exposure time"""
     if len(args) == 1:
@@ -188,6 +198,12 @@ def shutdown(config, *_):
     """Disables the camera drivers"""
     with config.daemon.connect() as camd:
         return camd.shutdown()
+
+
+def print_filters(config, _):
+    """Prints a list of selectable filters"""
+    print(' '.join(config.filters))
+    return 0
 
 
 def print_usage(config_paths):
@@ -239,11 +255,13 @@ if __name__ == '__main__':
         'gain': set_gain,
         'offset': set_offset,
         'stream': set_streaming,
+        'filter': set_filter,
         'status': status,
         'start': start,
         'stop': stop,
         'init': initialize,
-        'kill': shutdown
+        'kill': shutdown,
+        'list-filters': print_filters
     }
 
     if sys.argv[1] not in configs or sys.argv[2] not in commands:

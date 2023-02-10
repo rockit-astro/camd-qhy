@@ -29,6 +29,7 @@ import pathlib
 import platform
 import sys
 import threading
+import time
 import traceback
 from astropy.time import Time
 import astropy.units as u
@@ -90,6 +91,8 @@ class QHYInterface:
 
         self._readout_width = 0
         self._readout_height = 0
+
+        self._filter = config.filters[0]
 
         # Streaming frames (aka Live Mode) enables overlapping readout, avoiding
         # dead time between exposures. However, a bug in the QHY600 firmware / SDK
@@ -335,6 +338,7 @@ class QHYInterface:
                     'offset': self._offset,
                     'stream': self._stream_frames,
                     'read_end_time': read_end_time,
+                    'filter': self._filter,
                     'sdk_version': self._sdk_version,
                     'firmware_version': self._camera_firmware_version,
                     'cooler_mode': self._cooler_mode,
@@ -579,6 +583,30 @@ class QHYInterface:
                 initialized = True
                 print(f'camera {self._config.camera_device_id} initialized')
 
+                if len(self._config.filters) > 1:
+                    # Filter wheel takes ~16 seconds to home after power-on
+                    # IsQHYCCDCFWPlugged returns false until this is complete
+                    # Allow up to 20 seconds before giving up.
+                    attempts = 0
+                    while True:
+                        attempts += 1
+                        status = self._driver.IsQHYCCDCFWPlugged(handle)
+                        if status == QHYStatus.Success:
+                            break
+
+                        if attempts == 20:
+                            print('filter wheel is not plugged in')
+                            return CommandStatus.Failed
+
+                        time.sleep(1)
+
+                    filter_index = c_uint8()
+                    status = self._driver.GetQHYCCDCFWStatus(handle, byref(filter_index))
+                    if status != QHYStatus.Success:
+                        print(f'failed to query active filter with status {status}')
+                        return CommandStatus.Failed
+
+                    self._filter = self._config.filters[filter_index.value - ord('0')]
                 return CommandStatus.Succeeded
             except Exception as e:
                 print(e)
@@ -676,6 +704,29 @@ class QHYInterface:
         if not quiet:
             w = [x + 1 for x in self._window_region]
             log.info(self._config.log_name, f'Window set to [{w[0]}:{w[1]},{w[2]}:{w[3]}]')
+
+        return CommandStatus.Succeeded
+
+    def set_filter(self, filter_name, quiet):
+        """Set the filter wheel active filter"""
+        if self.is_acquiring:
+            return CommandStatus.CameraNotIdle
+
+        # Invalid filter or no filter wheel installed
+        if len(self._config.filters) == 1 or filter_name not in self._config.filters:
+            return CommandStatus.Failed
+
+        with self._driver_lock:
+            filter_index = ord('0') + self._config.filters.index(filter_name)
+            status = self._driver.SendOrder2QHYCCDCFW(self._handle, byref(c_uint8(filter_index)), 1)
+            if status != QHYStatus.Success:
+                print(f'failed to set filter with status {status}')
+                return CommandStatus.Failed
+
+            self._filter = filter_name
+
+        if not quiet:
+            log.info(self._config.log_name, f'Filter set to {filter_name}')
 
         return CommandStatus.Succeeded
 
@@ -790,6 +841,7 @@ class QHYInterface:
             'window': self._window_region,
             'sequence_frame_limit': self._sequence_frame_limit,
             'sequence_frame_count': sequence_frame_count,
+            'filter': self._filter,
         }
 
     def shutdown(self):
@@ -852,6 +904,8 @@ def qhy_process(camd_pipe, config,
                     camd_pipe.send(cam.start_sequence(args['count'], args['quiet']))
                 elif command == 'stop':
                     camd_pipe.send(cam.stop_sequence(args['quiet']))
+                elif command == 'filter':
+                    camd_pipe.send(cam.set_filter(args['filter_name'], args['quiet']))
                 elif command == 'status':
                     camd_pipe.send(cam.report_status())
                 elif command == 'shutdown':
