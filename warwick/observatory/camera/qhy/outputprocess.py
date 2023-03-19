@@ -124,7 +124,7 @@ def output_process(process_queue, processing_framebuffer, processing_framebuffer
         frame = process_queue.get()
 
         data = np.frombuffer(processing_framebuffer, dtype=np.uint16,
-                             offset=2*frame['data_offset'], count=frame['data_height'] * frame['data_width']) \
+                             offset=frame['data_offset'], count=frame['data_height'] * frame['data_width']) \
             .reshape((frame['data_height'], frame['data_width'])).copy()
         processing_framebuffer_offsets.put(frame['data_offset'])
 

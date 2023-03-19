@@ -53,7 +53,7 @@ class CameraDaemon:
 
         # Subprocesses for processing acquired frames
         self._processing_queue = Queue()
-        self._processing_framebuffer = RawArray('H', (config.framebuffer_bytes + 1) // 2)
+        self._processing_framebuffer = RawArray('B', config.framebuffer_bytes)
         self._processing_framebuffer_offsets = Queue()
         self._processing_stop_signal = Value(c_bool, False)
 

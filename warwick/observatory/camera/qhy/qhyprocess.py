@@ -242,9 +242,8 @@ class QHYInterface:
                 log.error(self._config.log_name, 'Frame buffer offsets queue is not empty!')
                 return
 
-            # NOTE: this references ushort array index, which is half the underlying byte offset
             offset = 0
-            frame_size = self._readout_width * self._readout_height
+            frame_size = 2 * self._readout_width * self._readout_height
             while offset + frame_size <= len(self._processing_framebuffer):
                 self._processing_framebuffer_offsets.put(offset)
                 offset += frame_size
@@ -296,7 +295,7 @@ class QHYInterface:
                         break
 
                 framebuffer_offset = self._processing_framebuffer_offsets.get()
-                cdata = (c_uint8 * frame_size).from_buffer(self._processing_framebuffer, 2 * framebuffer_offset)
+                cdata = (c_uint8 * frame_size).from_buffer(self._processing_framebuffer, framebuffer_offset)
 
                 if self._stream_frames:
                     status = QHYStatus.Error
