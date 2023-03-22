@@ -859,6 +859,7 @@ class QHYInterface:
             'sequence_frame_limit': self._sequence_frame_limit,
             'sequence_frame_count': sequence_frame_count,
             'filter': self._filter,
+            'stream': self._stream_frames
         }
 
     def shutdown(self):
