@@ -169,9 +169,17 @@ class QHYInterface:
         # frame buffer, and pushed back on as processing is complete
         self._processing_framebuffer_offsets = processing_framebuffer_offsets
 
+        # Camera has been disconnected/powered off or the driver has crashed
+        # Detected by way of the temperature/cooler queries returning 0xFFFFFFFF
+        self._driver_lost_camera = False
+
     @property
     def is_acquiring(self):
         return self._acquisition_thread is not None and self._acquisition_thread.is_alive()
+
+    @property
+    def driver_lost_camera(self):
+        return self._driver_lost_camera
 
     def reset_uvlo(self):
         """Check for and reset if needed the under-voltage lock out flag"""
@@ -183,8 +191,15 @@ class QHYInterface:
         """Polls and updates cooler status"""
         with self._driver_lock:
             # Query temperature status
-            self._cooler_temperature = self._driver.GetQHYCCDParam(self._handle, QHYControl.CURTEMP)
-            self._cooler_pwm = self._driver.GetQHYCCDParam(self._handle, QHYControl.CURPWM)
+            temperature = self._driver.GetQHYCCDParam(self._handle, QHYControl.CURTEMP)
+            pwm = self._driver.GetQHYCCDParam(self._handle, QHYControl.CURPWM)
+
+            if temperature == float(0xFFFFFFFF) or pwm == float(0xFFFFFFFF):
+                self._driver_lost_camera = True
+                return
+
+            self._cooler_temperature = temperature
+            self._cooler_pwm = pwm
 
             if int(self._driver.GetQHYCCDParam(self._handle, QHYControl.UVLO_STATUS)) in [2, 3, 9]:
                 self._cooler_mode = CoolerMode.UVLOError
@@ -915,6 +930,10 @@ def qhy_process(camd_pipe, config,
                 else:
                     print(f'unhandled command: {command}')
                     camd_pipe.send(CommandStatus.Failed)
+
+                if cam.driver_lost_camera:
+                    log.error(config.log_name, 'camera has disappeared')
+                    break
 
             dt = Time.now() - last_cooler_update
             if temperature_dirty or dt > config.cooler_update_delay * u.s:
