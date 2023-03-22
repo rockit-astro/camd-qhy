@@ -638,11 +638,13 @@ class QHYInterface:
         if self.is_acquiring:
             return CommandStatus.CameraNotIdle
 
-        self._gain = gain
-        status = self._driver.SetQHYCCDParam(self._handle, QHYControl.GAIN, c_double(self._gain))
-        if status != QHYStatus.Success:
-            print(f'failed to set gain with status {status}')
-            return CommandStatus.Failed
+        with self._driver_lock:
+            self._gain = gain
+            status = self._driver.SetQHYCCDParam(self._handle, QHYControl.GAIN, c_double(self._gain))
+
+            if status != QHYStatus.Success:
+                print(f'failed to set gain with status {status}')
+                return CommandStatus.Failed
 
         if not quiet:
             log.info(self._config.log_name, f'Gain set to {gain}')
@@ -654,11 +656,12 @@ class QHYInterface:
         if self.is_acquiring:
             return CommandStatus.CameraNotIdle
 
-        self._offset = offset
-        status = self._driver.SetQHYCCDParam(self._handle, QHYControl.OFFSET, c_double(self._offset))
-        if status != QHYStatus.Success:
-            print(f'failed to set offset with status {status}')
-            return CommandStatus.Failed
+        with self._driver_lock:
+            self._offset = offset
+            status = self._driver.SetQHYCCDParam(self._handle, QHYControl.OFFSET, c_double(self._offset))
+            if status != QHYStatus.Success:
+                print(f'failed to set offset with status {status}')
+                return CommandStatus.Failed
 
         if not quiet:
             log.info(self._config.log_name, f'Offset set to {offset}')
