@@ -24,11 +24,13 @@ The configuration options are:
   "cooler_update_delay": 1, # Amount of time in seconds to wait between querying the camera temperature and cooling status.
   "cooler_pwm_step": 3, # PWM units to change per update delay when cooling/warming (3 = ~1%).
   "worker_processes": 3, # Number of processes to use for generating fits images and saving temporary images to disk.
+  "framebuffer_bytes": 616512000, # Amount of shared memory to reserve for transferring frames between the camera and output processes (should be an integer multiple of frame size).
   "mode": 0, # Camera read mode: 0 (photographic), 1 (high gain), 4 (14 bit readout).
   "gain": 26, # Gain setting for the CMOS sensor. See the QHY600 spec sheet for details on the implications on signal and read noise.
   "offset": 140, # Bias setting for the CMOS sensor.
   "use_gpsbox": true, # Use attached GPS Box to measure exposure timestamps.
   "header_card_capacity": 144, # Pad the fits header with blank space to fit at least this many cards without reallocation.
+  "filters": ["None"], # Filter installed in the light path, or list of filters installed in filter wheel.
   "camera_id": "TEST", # Value to use for the CAMERA fits header keyword.
   "output_path": "/var/tmp/", # Path to save temporary output frames before they are handed to the pipeline daemon. This should match the pipeline incoming_data_path setting.
   "output_prefix": "test", # Filename prefix to use for temporary output frames.
