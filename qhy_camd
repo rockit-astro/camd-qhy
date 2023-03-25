@@ -28,6 +28,7 @@ import argparse
 from ctypes import c_bool
 from multiprocessing import Process, Queue, Value, Pipe
 from multiprocessing.sharedctypes import RawArray
+import queue
 import threading
 import Pyro4
 from warwick.observatory.common import TryLock
@@ -127,6 +128,19 @@ class CameraDaemon:
                 if self._qhy_process.exitcode is None:
                     print('force-terminating QHY process')
                     self._qhy_process.terminate()
+
+                    # Clean up dirty state
+                    while not self._processing_queue.empty():
+                        try:
+                            self._processing_queue.get(block=False)
+                        except queue.Empty:
+                            continue
+
+                    while not self._processing_framebuffer_offsets.empty():
+                        try:
+                            self._processing_framebuffer_offsets.get(block=False)
+                        except queue.Empty:
+                            continue
 
             return CommandStatus.Succeeded
 
