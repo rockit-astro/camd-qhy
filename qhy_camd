@@ -36,7 +36,7 @@ from warwick.observatory.common.helpers import pyro_client_matches
 from warwick.observatory.camera.qhy import Config, CommandStatus, CameraStatus, output_process, qhy_process
 
 # Set automatically when generating RPM package
-SOFTWARE_VERSION = "UNKNOWN"
+SOFTWARE_VERSION = "20230325 (git-a90c6c0)"
 
 
 class CameraDaemon:

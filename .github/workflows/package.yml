@@ -37,6 +37,7 @@ jobs:
           rocky-packages/set-spec-release.sh python3-warwick-observatory-qhy-camera.spec
           rocky-packages/set-spec-release.sh clasp-qhy-camera-data.spec
           rocky-packages/set-spec-release.sh superwasp-qhy-camera-data.spec
+          rocky-packages/set-spec-release.sh halfmetre-qhy-camera-data.spec
       - name: Package RPMs
         run:
           make

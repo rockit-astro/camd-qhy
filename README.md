@@ -46,12 +46,14 @@ First run the `install.sh` script and then compile and install the PCI-e driver 
 
 The automated packaging scripts will push 4 RPM packages to the observatory package repository:
 
-| Package           | Description |
-| ----------------- | ------ |
-| clasp-qhy-data  | Contains the json configuration files for the CLASP instrument. |
-| qhy-camera-server | Contains the `qhy_camd` server and systemd service files for the camera server. |
-| qhy-camera-client | Contains the `cam` commandline utility for controlling the camera server. |
-| python3-warwick-qhy-camera | Contains the python module with shared code. |
+| Package                    | Description                                                                     |
+|----------------------------|---------------------------------------------------------------------------------|
+| clasp-qhy-data             | Contains the json configuration files for the CLASP instrument.                 |
+| halfmetre-qhy-data         | Contains the json configuration files for the Half metre camera.                |
+| superwasp-qhy-data         | Contains the json configuration files for the SuperWASP cameras.                |
+| qhy-camera-server          | Contains the `qhy_camd` server and systemd service files for the camera server. |
+| qhy-camera-client          | Contains the `cam` commandline utility for controlling the camera server.       |
+| python3-warwick-qhy-camera | Contains the python module with shared code.                                    |
 
 The `qhy-camera-server` and `clasp-qhy-data` packages should be installed on the CLASP DAS machines, then the systemd service should be enabled:
 ```
