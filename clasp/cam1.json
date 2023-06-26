@@ -3,7 +3,7 @@
   "pipeline_daemon": "clasp_pipeline",
   "pipeline_handover_timeout": 10,
   "log_name": "qhy_camd@cam1",
-  "control_machines": ["CLASPTCS", "CLASPDAS1"],
+  "control_machines": ["CLASPTCS", "CLASPDAS"],
   "camera_device_id": "QHY600MPCIE-1a1ce44eaaa648ee3",
   "cooler_setpoint": 0,
   "cooler_update_delay": 5,
