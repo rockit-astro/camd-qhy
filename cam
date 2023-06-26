@@ -201,7 +201,7 @@ def shutdown(config, *_):
         return camd.shutdown()
 
 
-def print_filters(config, _):
+def print_filters(config, *_):
     """Prints a list of selectable filters"""
     print(' '.join(config.filters))
     return 0

@@ -18,7 +18,7 @@ _cam()
                 opts="default"
                 ;;
             filter)
-                opts=$(cam list-filters ${prev})
+                opts=$(cam ${prevprev} list-filters ${prev})
                 ;;
             *)
                 opts=$(cam list-cameras)
