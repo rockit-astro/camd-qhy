@@ -550,17 +550,6 @@ class QHYInterface:
                     print(f'failed to set 16bit readout with status {status}')
                     return CommandStatus.Failed
 
-                effective_x = c_uint32()
-                effective_y = c_uint32()
-                effective_width = c_uint32()
-                effective_height = c_uint32()
-                status = driver.GetQHYCCDEffectiveArea(handle,
-                                                       byref(effective_x), byref(effective_y),
-                                                       byref(effective_width), byref(effective_height))
-                if status != QHYStatus.Success:
-                    print(f'failed to query effective area with status {status}')
-                    return CommandStatus.Failed
-
                 # Regions are 0-indexed x1,x2,y1,2
                 # These are converted to 1-indexed when writing fits headers
                 self._window_region = [
@@ -570,14 +559,15 @@ class QHYInterface:
                     image_height.value - 1
                 ]
 
+                # HACK: Some SDK versions return bogus effective areas,
+                # so hardcode regions based on sensor specifications
                 self._image_region = [
-                    effective_x.value,
-                    effective_x.value + effective_width.value - 1,
-                    effective_y.value + 6 if self._config.use_gpsbox else 0,
-                    effective_y.value + effective_height.value - 1
+                    24,
+                    self._window_region[1],
+                    1 if self._config.use_gpsbox else 0,
+                    6387
                 ]
 
-                # HACK: Hardcode based on sensor specifications
                 self._bias_region = [
                     self._window_region[0],
                     self._window_region[1],
@@ -589,7 +579,7 @@ class QHYInterface:
                     self._window_region[0],
                     21,
                     self._window_region[2],
-                    6389
+                    6387
                 ]
 
                 self._driver = driver
