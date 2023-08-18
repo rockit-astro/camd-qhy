@@ -8,7 +8,7 @@ _cam()
     prevprev="${COMP_WORDS[COMP_CWORD-2]}"
 
     if [[ "${prevprev}" == "cam" ]]; then
-        opts="status exposure filter window start init temperature kill"
+        opts="status exposure filter window bin start init temperature kill"
     else
         case "${prev}" in
             start)

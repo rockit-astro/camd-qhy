@@ -106,6 +106,11 @@ def window_sensor_region(region, window):
     return [x1, x2, y1, y2]
 
 
+def bin_sensor_region(region, binning):
+    """Calculate new region coordinates when binned by a given value"""
+    return [x // binning for x in region]
+
+
 def format_sensor_region(region):
     """Format a 0-indexed region as a 1-indexed fits region"""
     return f'[{region[0] + 1}:{region[1] + 1},{region[2] + 1}:{region[3] + 1}]'
@@ -184,6 +189,32 @@ def output_process(process_queue, processing_framebuffer, processing_framebuffer
         image_region = window_sensor_region(frame['image_region'], frame['window_region'])
         bias_region = window_sensor_region(frame['bias_region'], frame['window_region'])
         dark_region = window_sensor_region(frame['dark_region'], frame['window_region'])
+        window_region = frame['window_region']
+        if image_region != frame['image_region']:
+            # Crop output data
+            # NOTE: Rolling shutter correction is handled in the branches above
+            data = data[window_region[2]:window_region[3] + 1, window_region[0]:window_region[1] + 1]
+
+        if frame['binning'] > 1:
+            nrows, ncols = data.shape
+            n_binned_cols = ncols//frame['binning']
+            n_binned_rows = nrows//frame['binning']
+            binned_cols = np.zeros((nrows, n_binned_cols), dtype=np.uint32)
+
+            for i in range(nrows):
+                binned_cols[i] = np.sum(data[i][:n_binned_cols*frame['binning']]
+                                        .reshape(n_binned_cols, frame['binning']), axis=1)
+
+            data = np.zeros((n_binned_rows, n_binned_cols), dtype=np.uint32)
+            for i in range(n_binned_cols):
+                data[:, i] = np.sum(binned_cols[:, i][:n_binned_rows*frame['binning']]
+                                    .reshape(n_binned_rows, frame['binning']), axis=1)
+
+            image_region = bin_sensor_region(image_region, frame['binning'])
+            bias_region = bin_sensor_region(bias_region, frame['binning'])
+            dark_region = bin_sensor_region(dark_region, frame['binning'])
+            window_region[1] = frame['window_region'][0] + n_binned_cols * frame['binning'] - 1
+            window_region[3] = frame['window_region'][2] + n_binned_rows * frame['binning'] - 1
 
         if image_region is not None:
             image_region_header = ('IMAG-RGN', format_sensor_region(image_region),
@@ -203,12 +234,6 @@ def output_process(process_queue, processing_framebuffer, processing_framebuffer
         else:
             dark_region_header = ('COMMENT', ' DARK-RGN not available', '')
 
-        if image_region != frame['image_region']:
-            # Crop output data
-            # NOTE: Rolling shutter correction is handled in the branches above
-            w = frame['window_region']
-            data = data[w[2]:w[3] + 1, w[0]:w[1] + 1]
-
         if frame['cooler_setpoint'] is not None:
             setpoint_header = ('TEMP-SET', frame['cooler_setpoint'], '[deg c] cmos temperature set point')
         else:
@@ -221,7 +246,7 @@ def output_process(process_queue, processing_framebuffer, processing_framebuffer
             ('EXPTIME', round(frame['exposure'], 3), '[s] actual exposure length'),
             ('EXPRQSTD', round(frame['requested_exposure'], 3), '[s] requested exposure length'),
             ('EXPCADNC', round(frame['frameperiod'], 3), '[s] exposure cadence'),
-            ('ROWDELTA', round(frame['lineperiod'] * 1e6, 3), '[us] rolling shutter row period'),
+            ('ROWDELTA', round(frame['lineperiod'] * 1e6, 3), '[us] rolling shutter unbinned row period'),
             ('PC-RDEND', frame['read_end_time'].strftime('%Y-%m-%dT%H:%M:%S.%f'),
              '[utc] local PC time when readout completed'),
             (None, None, None),
@@ -242,10 +267,8 @@ def output_process(process_queue, processing_framebuffer, processing_framebuffer
             ('TEMP-PWR', round(frame['cooler_pwm'] / 2.55), '[%] cooler power'),
             setpoint_header,
             ('TEMP-LCK', frame['cooler_mode'] == CoolerMode.Locked, 'cmos temperature is locked to set point'),
-            ('CAM-XBIN', 1, '[px] x binning'),
-            ('CAM-YBIN', 1, '[px] y binning'),
-            ('CAM-WIND', format_sensor_region(frame['window_region']),
-             '[x1:x2,y1:y2] readout region (detector coords)'),
+            ('CAM-BIN', frame['binning'], '[px] binning factor'),
+            ('CAM-WIND', format_sensor_region(window_region), '[x1:x2,y1:y2] readout region (detector coords)'),
             image_region_header,
             bias_region_header,
             dark_region_header,

@@ -103,6 +103,7 @@ class QHYInterface:
 
         # Crop output data to detector coordinates
         self._window_region = [0, 0, 0, 0]
+        self._binning = config.binning
 
         # Image geometry (marking edges of overscan etc)
         self._image_region = [0, 0, 0, 0]
@@ -360,6 +361,7 @@ class QHYInterface:
                     'cooler_pwm': self._cooler_pwm,
                     'cooler_setpoint': self._cooler_setpoint,
                     'window_region': self._window_region,
+                    'binning': self._binning,
                     'image_region': self._image_region,
                     'bias_region': self._bias_region,
                     'dark_region': self._dark_region,
@@ -708,9 +710,21 @@ class QHYInterface:
         else:
             return CommandStatus.Failed
 
+    def set_binning(self, binning, quiet):
+        """Set the camera binning"""
+        if self.is_acquiring:
+            return CommandStatus.CameraNotIdle
+
+        if binning is None:
+            binning = self._config.binning
+
+        if not isinstance(binning, int) or binning < 1:
+            return CommandStatus.Failed
+
+        self._binning = binning
+
         if not quiet:
-            w = [x + 1 for x in self._window_region]
-            log.info(self._config.log_name, f'Window set to [{w[0]}:{w[1]},{w[2]}:{w[3]}]')
+            log.info(self._config.log_name, f'Binning set to {binning}')
 
         return CommandStatus.Succeeded
 
@@ -846,6 +860,7 @@ class QHYInterface:
             'exposure_time': self._exposure_time,
             'exposure_progress': exposure_progress,
             'window': self._window_region,
+            'binning': self._binning,
             'sequence_frame_limit': self._sequence_frame_limit,
             'sequence_frame_count': sequence_frame_count,
             'filter': self._filter,
@@ -908,6 +923,8 @@ def qhy_process(camd_pipe, config,
                     camd_pipe.send(cam.set_exposure(args['exposure'], args['quiet']))
                 elif command == 'window':
                     camd_pipe.send(cam.set_window(args['window'], args['quiet']))
+                elif command == 'binning':
+                    camd_pipe.send(cam.set_binning(args['binning'], args['quiet']))
                 elif command == 'start':
                     camd_pipe.send(cam.start_sequence(args['count'], args['quiet']))
                 elif command == 'stop':

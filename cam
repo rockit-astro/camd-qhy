@@ -82,6 +82,7 @@ def status(config, *_):
 
         w = [x + 1 for x in data['window']]
         print(f'   Output window is {TFmt.Bold}[{w[0]}:{w[1]},{w[2]}:{w[3]}]{TFmt.Clear}')
+        print(f'   Binning is {TFmt.Bold}{data["binning"]}x{data["binning"]}{TFmt.Clear}')
         print(f'   Filter is {TFmt.Bold}{data["filter"]}{TFmt.Clear}')
     return 0
 
@@ -135,6 +136,24 @@ def set_window(config, camera_ids, args):
             return camd.set_window(window)
 
     print(f'usage: {SCRIPT_NAME} [{"|".join(camera_ids)}] window (<x1> <x2> <y1> <y2>|default)')
+    return -1
+
+
+def set_binning(config, camera_ids, args):
+    """Set the camera binning"""
+    if len(args) == 1:
+        binning = None
+        if args[0] != 'default':
+            try:
+                binning = int(args[0])
+            except ValueError:
+                print(f'usage: {SCRIPT_NAME} [{"|".join(camera_ids)}] bin <pixels>')
+                return -1
+
+        with config.daemon.connect() as camd:
+            return camd.set_binning(binning)
+
+    print(f'usage: {SCRIPT_NAME} [{"|".join(camera_ids)}] bin <pixels>')
     return -1
 
 
@@ -216,6 +235,7 @@ def print_usage(config_paths):
     print('   exposure     set exposure time in seconds')
     print('   start        start an exposure sequence')
     print('   window       set image geometry')
+    print('   bin          set image binning')
     print('   gain         set cmos gain parameter')
     print('   offset       set cmos bias parameter')
     print('   stream       switch between single-exposure and live mode')
@@ -253,6 +273,7 @@ if __name__ == '__main__':
         'temperature': set_temperature,
         'exposure': set_exposure,
         'window': set_window,
+        'bin': set_binning,
         'gain': set_gain,
         'offset': set_offset,
         'stream': set_streaming,
