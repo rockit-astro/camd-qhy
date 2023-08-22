@@ -184,9 +184,10 @@ class QHYInterface:
 
     def reset_uvlo(self):
         """Check for and reset if needed the under-voltage lock out flag"""
-        if int(self._driver.GetQHYCCDParam(self._handle, QHYControl.UVLO_STATUS)) in [2, 3, 9]:
-            print('Resetting UVLO flag')
-            self._driver.QHYCCDResetFlashULVOError(self._handle)
+        with self._driver_lock:
+            if int(self._driver.GetQHYCCDParam(self._handle, QHYControl.UVLO_STATUS)) in [2, 3, 9]:
+                print('Resetting UVLO flag')
+                self._driver.QHYCCDResetFlashULVOError(self._handle)
 
     def update_cooler(self):
         """Polls and updates cooler status"""
