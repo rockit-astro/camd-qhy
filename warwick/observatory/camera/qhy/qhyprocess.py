@@ -114,6 +114,7 @@ class QHYInterface:
         # Optically masked dark pixels
         self._dark_region = [0, 0, 0, 0]
 
+        self._cooler_condition = threading.Condition()
         self._cooler_mode = CoolerMode.Unknown
         self._cooler_setpoint = config.cooler_setpoint
         self._cooler_temperature = 0
@@ -174,6 +175,8 @@ class QHYInterface:
         # Detected by way of the temperature/cooler queries returning 0xFFFFFFFF
         self._driver_lost_camera = False
 
+        threading.Thread(target=self.__cooler_thread, daemon=True).start()
+
     @property
     def is_acquiring(self):
         return self._acquisition_thread is not None and self._acquisition_thread.is_alive()
@@ -189,56 +192,60 @@ class QHYInterface:
                 print('Resetting UVLO flag')
                 self._driver.QHYCCDResetFlashULVOError(self._handle)
 
-    def update_cooler(self):
+    def __cooler_thread(self):
         """Polls and updates cooler status"""
-        with self._driver_lock:
-            # Query temperature status
-            temperature = self._driver.GetQHYCCDParam(self._handle, QHYControl.CURTEMP)
-            pwm = self._driver.GetQHYCCDParam(self._handle, QHYControl.CURPWM)
+        while True:
+            with self._driver_lock:
+                if self._driver is not None:
+                    # Query temperature status
+                    temperature = self._driver.GetQHYCCDParam(self._handle, QHYControl.CURTEMP)
+                    pwm = self._driver.GetQHYCCDParam(self._handle, QHYControl.CURPWM)
 
-            if temperature == float(0xFFFFFFFF) or pwm == float(0xFFFFFFFF):
-                self._driver_lost_camera = True
-                return
+                    if temperature == float(0xFFFFFFFF) or pwm == float(0xFFFFFFFF):
+                        self._driver_lost_camera = True
+                        return
 
-            self._cooler_temperature = temperature
-            self._cooler_pwm = pwm
+                    self._cooler_temperature = temperature
+                    self._cooler_pwm = pwm
 
-            if int(self._driver.GetQHYCCDParam(self._handle, QHYControl.UVLO_STATUS)) in [2, 3, 9]:
-                self._cooler_mode = CoolerMode.UVLOError
-            elif self._cooler_setpoint is None:
-                # Ramp the cooler power down over a few update cycles
-                if self._cooler_pwm > 0:
-                    self._cooler_mode = CoolerMode.Warming
-                    p = max(0, self._cooler_pwm - self._config.cooler_pwm_step)
-                    status = self._driver.SetQHYCCDParam(self._handle, QHYControl.MANUALPWM, c_double(p))
-                    if status != QHYStatus.Success:
-                        print(f'failed to update cooler PWM control with status {status}')
-                else:
-                    self._cooler_mode = CoolerMode.Warm
-            else:
-                temp_delta = abs(self._cooler_temperature - self._cooler_setpoint)
-                if temp_delta > 5:
-                    # Ramp the cooler power towards the requested temperature over a few update cycles
-                    if self._cooler_temperature > self._cooler_setpoint:
-                        self._cooler_mode = CoolerMode.Cooling
-                        p = min(255, self._cooler_pwm + self._config.cooler_pwm_step)
+                    if int(self._driver.GetQHYCCDParam(self._handle, QHYControl.UVLO_STATUS)) in [2, 3, 9]:
+                        self._cooler_mode = CoolerMode.UVLOError
+                    elif self._cooler_setpoint is None:
+                        # Ramp the cooler power down over a few update cycles
+                        if self._cooler_pwm > 0:
+                            self._cooler_mode = CoolerMode.Warming
+                            p = max(0, self._cooler_pwm - self._config.cooler_pwm_step)
+                            status = self._driver.SetQHYCCDParam(self._handle, QHYControl.MANUALPWM, c_double(p))
+                            if status != QHYStatus.Success:
+                                print(f'failed to update cooler PWM control with status {status}')
+                        else:
+                            self._cooler_mode = CoolerMode.Warm
                     else:
-                        self._cooler_mode = CoolerMode.Warming
-                        p = max(0, self._cooler_pwm - self._config.cooler_pwm_step)
+                        temp_delta = abs(self._cooler_temperature - self._cooler_setpoint)
+                        if temp_delta > 5:
+                            # Ramp the cooler power towards the requested temperature over a few update cycles
+                            if self._cooler_temperature > self._cooler_setpoint:
+                                self._cooler_mode = CoolerMode.Cooling
+                                p = min(255, self._cooler_pwm + self._config.cooler_pwm_step)
+                            else:
+                                self._cooler_mode = CoolerMode.Warming
+                                p = max(0, self._cooler_pwm - self._config.cooler_pwm_step)
 
-                    status = self._driver.SetQHYCCDParam(self._handle, QHYControl.MANUALPWM, c_double(p))
-                    if status != QHYStatus.Success:
-                        print(f'failed to update cooler PWM control with status {status}')
-                else:
-                    self._cooler_mode = CoolerMode.Locked if temp_delta < 0.5 else CoolerMode.Locking
+                            status = self._driver.SetQHYCCDParam(self._handle, QHYControl.MANUALPWM, c_double(p))
+                            if status != QHYStatus.Success:
+                                print(f'failed to update cooler PWM control with status {status}')
+                        else:
+                            self._cooler_mode = CoolerMode.Locked if temp_delta < 0.5 else CoolerMode.Locking
 
-                    target = self._driver.GetQHYCCDParam(self._handle, QHYControl.COOLER)
-                    if abs(target - self._cooler_setpoint) > 0.1:
-                        # Switch to auto control and/or update new target temperature
-                        status = self._driver.SetQHYCCDParam(self._handle, QHYControl.COOLER,
-                                                             c_double(self._cooler_setpoint))
-                        if status != QHYStatus.Success:
-                            print(f'failed to set temperature to {self._cooler_setpoint} with status {status}')
+                            target = self._driver.GetQHYCCDParam(self._handle, QHYControl.COOLER)
+                            if abs(target - self._cooler_setpoint) > 0.1:
+                                # Switch to auto control and/or update new target temperature
+                                status = self._driver.SetQHYCCDParam(self._handle, QHYControl.COOLER,
+                                                                     c_double(self._cooler_setpoint))
+                                if status != QHYStatus.Success:
+                                    print(f'failed to set temperature to {self._cooler_setpoint} with status {status}')
+            with self._cooler_condition:
+                self._cooler_condition.wait(self._config.cooler_update_delay)
 
     def __run_exposure_sequence(self, quiet):
         """Worker thread that acquires frames and their times.
@@ -590,6 +597,9 @@ class QHYInterface:
                 initialized = True
                 print(f'camera {self._config.camera_device_id} initialized')
 
+                with self._cooler_condition:
+                    self._cooler_condition.notify()
+
                 if len(self._config.filters) > 1:
                     # Filter wheel takes ~16 seconds to home after power-on
                     # IsQHYCCDCFWPlugged returns false until this is complete
@@ -636,6 +646,9 @@ class QHYInterface:
             return CommandStatus.TemperatureOutsideLimits
 
         self._cooler_setpoint = temperature
+        with self._cooler_condition:
+            self._cooler_condition.notify()
+
         if not quiet:
             log.info(self._config.log_name, f'Target temperature set to {temperature}')
 
@@ -896,23 +909,19 @@ def qhy_process(camd_pipe, config,
     # Clear any UVLO errors on first connection
     if ret == CommandStatus.Succeeded:
         cam.reset_uvlo()
-        cam.update_cooler()
 
     camd_pipe.send(ret)
     if ret != CommandStatus.Succeeded:
         return
 
     try:
-        last_cooler_update = Time.now()
         while True:
-            temperature_dirty = False
             if camd_pipe.poll(timeout=1):
                 c = camd_pipe.recv()
                 command = c['command']
                 args = c['args']
 
                 if command == 'temperature':
-                    temperature_dirty = True
                     camd_pipe.send(cam.set_target_temperature(args['temperature'], args['quiet']))
                 elif command == 'stream':
                     camd_pipe.send(cam.set_frame_streaming(args['stream'], args['quiet']))
@@ -944,10 +953,6 @@ def qhy_process(camd_pipe, config,
                     log.error(config.log_name, 'camera has disappeared')
                     break
 
-            dt = Time.now() - last_cooler_update
-            if temperature_dirty or dt > config.cooler_update_delay * u.s:
-                cam.update_cooler()
-                last_cooler_update = Time.now()
     except Exception:
         traceback.print_exc(file=sys.stdout)
         camd_pipe.send(CommandStatus.Failed)
