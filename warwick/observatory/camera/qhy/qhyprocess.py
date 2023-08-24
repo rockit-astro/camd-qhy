@@ -53,6 +53,7 @@ class QHYControl:
     MANUALPWM = 16
     COOLER = 18
     GPS = 36
+    DDR = 48
     UVLO_STATUS = 67
 
 
@@ -259,6 +260,15 @@ class QHYInterface:
 
             if status != QHYStatus.Success:
                 log.error(self._config.log_name, f'Failed to set exposure time ({status})')
+                return
+
+            # Camera will sometimes return stale data out of the DDR buffer
+            # Resetting DDR flag seems to work for clearing the buffer
+            with self._driver_lock:
+                status = self._driver.SetQHYCCDParam(self._handle, QHYControl.DDR, c_double(1.0))
+
+            if status != QHYStatus.Success:
+                log.error(self._config.log_name, f'Failed to clear DDR ({status})')
                 return
 
             # Prepare the framebuffer offsets
