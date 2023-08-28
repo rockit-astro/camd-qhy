@@ -26,7 +26,7 @@ from astropy.io import fits
 from astropy.time import Time
 import astropy.units as u
 import numpy as np
-from warwick.observatory.common import daemons, log
+from rockit.common import daemons, log
 from .constants import CoolerMode
 
 

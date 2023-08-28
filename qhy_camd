@@ -31,8 +31,8 @@ from multiprocessing.sharedctypes import RawArray
 import queue
 import threading
 import Pyro4
-from warwick.observatory.common import TryLock
-from warwick.observatory.common.helpers import pyro_client_matches
+from rockit.common import TryLock
+from rockit.common.helpers import pyro_client_matches
 from warwick.observatory.camera.qhy import Config, CommandStatus, CameraStatus, output_process, qhy_process
 
 # Set automatically when generating RPM package

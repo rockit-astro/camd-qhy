@@ -19,7 +19,7 @@
 # pylint: disable=too-many-instance-attributes
 
 import json
-from warwick.observatory.common import daemons, IP, validation
+from rockit.common import daemons, IP, validation
 
 CONFIG_SCHEMA = {
     'type': 'object',

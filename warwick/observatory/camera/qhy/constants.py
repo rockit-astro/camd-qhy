@@ -19,7 +19,7 @@
 # pylint: disable=too-few-public-methods
 # pylint: disable=invalid-name
 
-from warwick.observatory.common import TFmt
+from rockit.common import TFmt
 
 
 class CommandStatus:

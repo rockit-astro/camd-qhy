@@ -34,7 +34,7 @@ import traceback
 from astropy.time import Time
 import astropy.units as u
 import Pyro4
-from warwick.observatory.common import log
+from rockit.common import log
 from .constants import CommandStatus, CameraStatus, CoolerMode
 
 

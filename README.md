@@ -14,11 +14,11 @@ A configuration file is specified when launching the camera server, and the `cam
 The configuration options are:
 ```python
 {
-  "daemon": "localhost_test", # Run the camera server as this daemon. Daemon types are registered in `warwick.observatory.common.daemons`.
+  "daemon": "localhost_test", # Run the camera server as this daemon. Daemon types are registered in `rockit.common.daemons`.
   "pipeline_daemon": "localhost_test2", # The daemon that should be notified to hand over newly saved frames for processing.
   "pipeline_handover_timeout": 10, # The maximum amount of time to wait for the pipeline daemon to accept a newly saved frame. The exposure sequence is aborted if this is exceeded.
   "log_name": "qhy_camd@test", # The name to use when writing messages to the observatory log.
-  "control_machines": ["LocalHost"], # Machine names that are allowed to control (rather than just query) state. Machine names are registered in `warwick.observatory.common.IP`.
+  "control_machines": ["LocalHost"], # Machine names that are allowed to control (rather than just query) state. Machine names are registered in `rockit.common.IP`.
   "camera_device_id": "QHY600M-2c52f645aa1c25b98", # Identifier reported by the SDK for the desired camera. If not known, set a dummy value and look at the list reported when camd attempts to connect.
   "cooler_setpoint": -5, # Default temperature for the CMOS sensor.
   "cooler_update_delay": 1, # Amount of time in seconds to wait between querying the camera temperature and cooling status.
@@ -69,7 +69,7 @@ sudo firewall-cmd --zone=public --add-port=<port>/tcp --permanent
 sudo firewall-cmd --reload
 ```
 
-where `port` is the port defined in `warwick.observatory.common.daemons` for the daemon specified in the camera config.
+where `port` is the port defined in `rockit.common.daemons` for the daemon specified in the camera config.
 
 The `qhy-camera-client` and `clasp-qhy-config` packages should be installed on the CLASP TCS machine for centralized control.
 
