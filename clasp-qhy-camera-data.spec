@@ -11,7 +11,7 @@ BuildArch: noarch
 
 %build
 mkdir -p %{buildroot}%{_sysconfdir}/camd
-%{__install} %{_sourcedir}/clasp/cam1.json %{buildroot}%{_sysconfdir}/camd
+%{__install} %{_sourcedir}/config/clasp/cam1.json %{buildroot}%{_sysconfdir}/camd
 
 %files
 %defattr(0644,root,root,-)

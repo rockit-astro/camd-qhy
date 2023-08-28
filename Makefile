@@ -17,6 +17,7 @@ all:
 	${RPMBUILD} -ba clasp-qhy-camera-data.spec
 	${RPMBUILD} -ba superwasp-qhy-camera-data.spec
 	${RPMBUILD} -ba halfmetre-qhy-camera-data.spec
+	${RPMBUILD} -ba warwick-qhy-camera-data.spec
 	mv build/noarch/*.rpm .
 	rm -rf build
 	mv qhy_camd.bak qhy_camd

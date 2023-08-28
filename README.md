@@ -51,6 +51,7 @@ The automated packaging scripts will push 4 RPM packages to the observatory pack
 | clasp-qhy-data             | Contains the json configuration files for the CLASP instrument.                 |
 | halfmetre-qhy-data         | Contains the json configuration files for the Half metre camera.                |
 | superwasp-qhy-data         | Contains the json configuration files for the SuperWASP cameras.                |
+| warwick-qhy-data           | Contains the json configuration files for the Windmill Hill Observatory camera. |
 | qhy-camera-server          | Contains the `qhy_camd` server and systemd service files for the camera server. |
 | qhy-camera-client          | Contains the `cam` commandline utility for controlling the camera server.       |
 | python3-warwick-qhy-camera | Contains the python module with shared code.                                    |

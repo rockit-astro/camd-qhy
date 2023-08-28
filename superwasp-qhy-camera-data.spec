@@ -11,10 +11,10 @@ BuildArch: noarch
 
 %build
 mkdir -p %{buildroot}%{_sysconfdir}/camd
-%{__install} %{_sourcedir}/superwasp/cam1.json %{buildroot}%{_sysconfdir}/camd
-%{__install} %{_sourcedir}/superwasp/cam2.json %{buildroot}%{_sysconfdir}/camd
-%{__install} %{_sourcedir}/superwasp/cam3.json %{buildroot}%{_sysconfdir}/camd
-%{__install} %{_sourcedir}/superwasp/cam4.json %{buildroot}%{_sysconfdir}/camd
+%{__install} %{_sourcedir}/config/superwasp/cam1.json %{buildroot}%{_sysconfdir}/camd
+%{__install} %{_sourcedir}/config/superwasp/cam2.json %{buildroot}%{_sysconfdir}/camd
+%{__install} %{_sourcedir}/config/superwasp/cam3.json %{buildroot}%{_sysconfdir}/camd
+%{__install} %{_sourcedir}/config/superwasp/cam4.json %{buildroot}%{_sysconfdir}/camd
 
 %files
 %defattr(0644,root,root,-)

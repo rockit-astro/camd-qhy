@@ -11,7 +11,7 @@ BuildArch: noarch
 
 %build
 mkdir -p %{buildroot}%{_sysconfdir}/camd
-%{__install} %{_sourcedir}/halfmetre/halfmetre.json %{buildroot}%{_sysconfdir}/camd
+%{__install} %{_sourcedir}/config/halfmetre.json %{buildroot}%{_sysconfdir}/camd
 
 %files
 %defattr(0644,root,root,-)
