@@ -15,7 +15,6 @@
   "offset": 30,
   "binning": 2,
   "use_gpsbox": true,
-  "filters": ["NONE"],
   "header_card_capacity": 144,
   "camera_id": "QHY600M",
   "output_path": "/data/incoming/",

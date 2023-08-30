@@ -83,7 +83,8 @@ def status(config, *_):
         w = [x + 1 for x in data['window']]
         print(f'   Output window is {TFmt.Bold}[{w[0]}:{w[1]},{w[2]}:{w[3]}]{TFmt.Clear}')
         print(f'   Binning is {TFmt.Bold}{data["binning"]}x{data["binning"]}{TFmt.Clear}')
-        print(f'   Filter is {TFmt.Bold}{data["filter"]}{TFmt.Clear}')
+        if data['filter']:
+            print(f'   Filter is {TFmt.Bold}{data["filter"]}{TFmt.Clear}')
     return 0
 
 

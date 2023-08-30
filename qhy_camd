@@ -299,8 +299,9 @@ class CameraDaemon:
             stream = params.get('stream', True)
             self.qhy_command('stream', stream=stream, quiet=quiet)
 
-            filter_name = params.get('filter', self._config.filters[0])
-            self.qhy_command('filter', filter_name=filter_name, quiet=quiet)
+            if len(self._config.filters) > 1:
+                filter_name = params.get('filter', self._config.filters[0])
+                self.qhy_command('filter', filter_name=filter_name, quiet=quiet)
 
             return CommandStatus.Succeeded
 

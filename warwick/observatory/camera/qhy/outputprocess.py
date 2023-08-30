@@ -144,12 +144,12 @@ def output_process(process_queue, processing_framebuffer, processing_framebuffer
         start_offset = end_offset - frame['exposure']
         end_time = (frame['read_end_time'] + end_offset * u.s).strftime('%Y-%m-%dT%H:%M:%S.%f')
         start_time = (frame['read_end_time'] + start_offset * u.s).strftime('%Y-%m-%dT%H:%M:%S.%f')
-        date_header = [
+        date_headers = [
             ('DATE-OBS', start_time, '[utc] estimated row 0 exposure start time'),
             ('DATE-END', end_time, '[utc] estimated row 0 exposure end time'),
             ('TIME-SRC', 'NTP', 'DATE-OBS is estimated from NTP-synced PC clock'),
         ]
-        gps_header = []
+        gps_headers = []
 
         if use_gpsbox:
             # Parse timestamps out of the first row of pixel data
@@ -168,13 +168,13 @@ def output_process(process_queue, processing_framebuffer, processing_framebuffer
                               frame['lineperiod'] * 2 * (frame['window_region'][2] // 2)
                 start_time = GPSData.create_timestamp(end_seconds - frame['exposure'], gps.NowCounts)
                 end_time = GPSData.create_timestamp(end_seconds, gps.NowCounts)
-                date_header = [
+                date_headers = [
                     ('DATE-OBS', start_time, '[utc] row 0 exposure start time'),
                     ('DATE-END', end_time, '[utc] row 0 exposure end time'),
                     ('TIME-SRC', 'GPS', 'DATE-OBS is from a GPS measured HSYNC signal'),
                 ]
 
-            gps_header = [
+            gps_headers = [
                 (None, None, None),
                 ('COMMENT', ' ---             GPS INFORMATION             --- ', ''),
                 ('GPS-SEQN', gps.SequenceNumber, 'exposure sequence number'),
@@ -239,10 +239,15 @@ def output_process(process_queue, processing_framebuffer, processing_framebuffer
         else:
             setpoint_header = ('COMMENT', ' TEMP-SET not available', '')
 
+        if frame['filter']:
+            filter_headers = ('FILTER', frame['filter'], 'filter in light path'),
+        else:
+            filter_headers = []
+
         header = [
             (None, None, None),
             ('COMMENT', ' ---                DATE/TIME                --- ', ''),
-        ] + date_header + [
+        ] + date_headers + [
             ('EXPTIME', round(frame['exposure'], 3), '[s] actual exposure length'),
             ('EXPRQSTD', round(frame['requested_exposure'], 3), '[s] requested exposure length'),
             ('EXPCADNC', round(frame['frameperiod'], 3), '[s] exposure cadence'),
@@ -256,7 +261,7 @@ def output_process(process_queue, processing_framebuffer, processing_framebuffer
             ('FWVER', frame['firmware_version'], 'camera firmware version'),
             ('CAMID', camera_id, 'camera identifier'),
             ('CAMERA', camera_device_id, 'camera model and serial number'),
-            ('FILTER', frame['filter'], 'filter in light path'),
+        ] + filter_headers + [
             ('CAM-MODE', frame['mode'], f'cmos read mode ({frame["mode_name"]})'),
             ('CAM-TFER', 'STREAM' if frame['stream'] else 'SINGLE', 'frame transfer mode'),
             ('CAM-GAIN', frame['gain'], 'cmos gain setting'),
@@ -274,7 +279,7 @@ def output_process(process_queue, processing_framebuffer, processing_framebuffer
             dark_region_header,
             ('EXPCNT', frame['exposure_count'], 'running exposure count since EXPCREF'),
             ('EXPCREF', frame['exposure_count_reference'], 'date the exposure counter was reset'),
-        ] + gps_header
+        ] + gps_headers
 
         hdu = fits.PrimaryHDU(data)
 

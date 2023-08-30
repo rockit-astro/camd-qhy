@@ -93,7 +93,10 @@ class QHYInterface:
         self._readout_width = 0
         self._readout_height = 0
 
-        self._filter = config.filters[0]
+        if config.filters:
+            self._filter = config.filters[0]
+        else:
+            self._filter = None
 
         # Streaming frames (aka Live Mode) enables overlapping readout, avoiding
         # dead time between exposures. However, a bug in the QHY600 firmware / SDK
@@ -758,7 +761,7 @@ class QHYInterface:
             return CommandStatus.CameraNotIdle
 
         # Invalid filter or no filter wheel installed
-        if len(self._config.filters) == 1 or filter_name not in self._config.filters:
+        if len(self._config.filters) < 2 or filter_name not in self._config.filters:
             return CommandStatus.Failed
 
         with self._driver_lock:
