@@ -4,8 +4,6 @@
 
 `cam` is a commandline utility for controlling the cameras.
 
-See [Software Infrastructure](https://github.com/warwick-one-metre/docs/wiki/Software-Infrastructure) for an overview of the observatory software architecture and instructions for developing and deploying the code.
-
 ### Configuration
 
 Configuration is read from json files that are installed by default to `/etc/camd`.
@@ -30,7 +28,7 @@ The configuration options are:
   "offset": 140, # Bias setting for the CMOS sensor.
   "use_gpsbox": true, # Use attached GPS Box to measure exposure timestamps.
   "header_card_capacity": 144, # Pad the fits header with blank space to fit at least this many cards without reallocation.
-  "filters": ["None"], # Filter installed in the light path, or list of filters installed in filter wheel.
+  "filters": ["None"], # [optional] Filter installed in the light path, or list of filters installed in filter wheel.
   "camera_id": "TEST", # Value to use for the CAMERA fits header keyword.
   "output_path": "/var/tmp/", # Path to save temporary output frames before they are handed to the pipeline daemon. This should match the pipeline incoming_data_path setting.
   "output_prefix": "test", # Filename prefix to use for temporary output frames.
@@ -40,23 +38,18 @@ The configuration options are:
 
 ### Initial Installation
 
-The first step is to download and install the QHY Linux SDK from their website.
+The automated packaging scripts will push 7 RPM packages to the observatory package repository:
 
-First run the `install.sh` script and then compile and install the PCI-e driver in `<sdk dir>/usr/local/riffa_linux_driver/`
+| Package                          | Description                                                                     |
+|----------------------------------|---------------------------------------------------------------------------------|
+| rockit-camera-qhy-data-clasp     | Contains the json configuration files for the CLASP instrument.                 |
+| rockit-camera-qhy-data-halfmetre | Contains the json configuration files for the Half metre camera.                |
+| rockit-camera-qhy-data-superwasp | Contains the json configuration files for the SuperWASP cameras.                |
+| rockit-camera-qhy-data-warwick   | Contains the json configuration files for the Windmill Hill Observatory camera. |
+| rockit-camera-qhy-server         | Contains the `qhy_camd` server and systemd service files for the camera server. |
+| rockit-camera-qhy-client         | Contains the `cam` commandline utility for controlling the camera server.       |
+| python3-rockit-camera-qhy        | Contains the python module with shared code.                                    |
 
-The automated packaging scripts will push 4 RPM packages to the observatory package repository:
-
-| Package                    | Description                                                                     |
-|----------------------------|---------------------------------------------------------------------------------|
-| clasp-qhy-data             | Contains the json configuration files for the CLASP instrument.                 |
-| halfmetre-qhy-data         | Contains the json configuration files for the Half metre camera.                |
-| superwasp-qhy-data         | Contains the json configuration files for the SuperWASP cameras.                |
-| warwick-qhy-data           | Contains the json configuration files for the Windmill Hill Observatory camera. |
-| qhy-camera-server          | Contains the `qhy_camd` server and systemd service files for the camera server. |
-| qhy-camera-client          | Contains the `cam` commandline utility for controlling the camera server.       |
-| python3-warwick-qhy-camera | Contains the python module with shared code.                                    |
-
-The `qhy-camera-server` and `clasp-qhy-data` packages should be installed on the CLASP DAS machines, then the systemd service should be enabled:
 ```
 sudo systemctl enable --now qhy_camd.service@<config>
 ```
@@ -70,8 +63,6 @@ sudo firewall-cmd --reload
 ```
 
 where `port` is the port defined in `rockit.common.daemons` for the daemon specified in the camera config.
-
-The `qhy-camera-client` and `clasp-qhy-config` packages should be installed on the CLASP TCS machine for centralized control.
 
 ### Upgrading Installation
 

@@ -1,18 +1,18 @@
 #
-# This file is part of qhy-camd.
+# This file is part of the Robotic Observatory Control Kit (rockit)
 #
-# qhy-camd is free software: you can redistribute it and/or modify
+# rockit is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# qhy-camd is distributed in the hope that it will be useful,
+# rockit is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with qhy-camd.  If not, see <http://www.gnu.org/licenses/>.
+# along with rockit.  If not, see <http://www.gnu.org/licenses/>.
 
 """Helper process for preparing and saving fits images"""
 
@@ -118,7 +118,7 @@ def format_sensor_region(region):
 
 def output_process(process_queue, processing_framebuffer, processing_framebuffer_offsets, stop_signal,
                    camera_id, camera_device_id, use_gpsbox, header_card_capacity, output_path, log_name,
-                   pipeline_daemon_name, pipeline_handover_timeout, software_version):
+                   pipeline_daemon_name, pipeline_handover_timeout):
     """
     Helper process to save frames to disk.
     This uses a process (rather than a thread) to avoid the GIL bottlenecking throughput,
@@ -256,7 +256,6 @@ def output_process(process_queue, processing_framebuffer, processing_framebuffer
              '[utc] local PC time when readout completed'),
             (None, None, None),
             ('COMMENT', ' ---           CAMERA INFORMATION            --- ', ''),
-            ('CAMSWVER', software_version, 'camera server software version'),
             ('SDKVER', frame['sdk_version'], 'QHY SDK version'),
             ('FWVER', frame['firmware_version'], 'camera firmware version'),
             ('CAMID', camera_id, 'camera identifier'),
