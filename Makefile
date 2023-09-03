@@ -16,12 +16,11 @@ all:
 install:
 	@date --utc +%Y%m%d%H%M%S > VERSION
 	@python3 -m build --outdir .
-	@sudo pip3 install rockit.camera-qhy-$$(cat VERSION)-py3-none-any.whl
+	@sudo pip3 install rockit.camera.qhy-$$(cat VERSION)-py3-none-any.whl
 	@rm VERSION
-	@cp qhy_camd cam /bin/
-	@cp qhy_camd@.service /usr/lib/systemd/system/
-	@cp completion/cam /etc/bash_completion.d/
-	@install -d /etc/qhy_camd
+	@sudo cp qhy_camd /bin/
+	@sudo cp qhy_camd@.service /usr/lib/systemd/system/
+	@sudo install -d /etc/qhy_camd
 	@echo ""
-	@echo "Installed server, client, and service files."
+	@echo "Installed server and service files."
 	@echo "Now copy the relevant json config files to /etc/qhy_camd/"

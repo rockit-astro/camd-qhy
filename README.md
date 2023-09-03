@@ -2,7 +2,7 @@
 
 `qhy_camd` interfaces with and wraps QHY600M detectors and exposes them via Pyro.
 
-`cam` is a commandline utility for controlling the cameras.
+The `cam` commandline utility for controlling the cameras is provided by [camd](https://github.com/rockit-astro/camd/).
 
 ### Configuration
 
@@ -47,7 +47,6 @@ The automated packaging scripts will push 7 RPM packages to the observatory pack
 | rockit-camera-qhy-data-superwasp | Contains the json configuration files for the SuperWASP cameras.                |
 | rockit-camera-qhy-data-warwick   | Contains the json configuration files for the Windmill Hill Observatory camera. |
 | rockit-camera-qhy-server         | Contains the `qhy_camd` server and systemd service files for the camera server. |
-| rockit-camera-qhy-client         | Contains the `cam` commandline utility for controlling the camera server.       |
 | python3-rockit-camera-qhy        | Contains the python module with shared code.                                    |
 
 ```

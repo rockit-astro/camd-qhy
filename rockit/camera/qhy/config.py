@@ -25,10 +25,11 @@ CONFIG_SCHEMA = {
     'type': 'object',
     'additionalProperties': False,
     'required': [
-        'daemon', 'pipeline_daemon', 'pipeline_handover_timeout', 'log_name', 'control_machines', 'camera_device_id',
-        'camera_id', 'cooler_setpoint', 'cooler_update_delay', 'cooler_pwm_step', 'worker_processes',
-        'framebuffer_bytes', 'mode', 'gain', 'offset', 'binning', 'use_gpsbox', 'header_card_capacity',
-        'output_path', 'output_prefix', 'expcount_path'
+        'daemon', 'pipeline_daemon', 'pipeline_handover_timeout', 'log_name', 'control_machines',
+        'client_commands_module',
+        'camera_device_id', 'camera_id', 'cooler_setpoint', 'cooler_update_delay', 'cooler_pwm_step',
+        'worker_processes', 'framebuffer_bytes', 'mode', 'gain', 'offset', 'binning', 'use_gpsbox',
+        'header_card_capacity', 'output_path', 'output_prefix', 'expcount_path'
     ],
     'properties': {
         'daemon': {
@@ -52,6 +53,9 @@ CONFIG_SCHEMA = {
                 'type': 'string',
                 'machine_name': True
             }
+        },
+        'client_commands_module': {
+            'type': 'string'
         },
         'camera_device_id': {
             'type': 'string'

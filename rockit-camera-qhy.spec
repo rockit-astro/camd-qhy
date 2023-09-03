@@ -12,14 +12,11 @@ BuildArch: noarch
 %build
 mkdir -p %{buildroot}%{_bindir}
 mkdir -p %{buildroot}%{_unitdir}
-mkdir -p %{buildroot}/etc/bash_completion.d
 mkdir -p %{buildroot}%{_sysconfdir}/camd
 mkdir -p %{buildroot}%{_udevrulesdir}
 
-%{__install} %{_sourcedir}/cam %{buildroot}%{_bindir}
 %{__install} %{_sourcedir}/qhy_camd %{buildroot}%{_bindir}
 %{__install} %{_sourcedir}/qhy_camd@.service %{buildroot}%{_unitdir}
-%{__install} %{_sourcedir}/completion/cam %{buildroot}/etc/bash_completion.d
 
 %{__install} %{_sourcedir}/config/halfmetre.json %{buildroot}%{_sysconfdir}/camd
 %{__install} %{_sourcedir}/config/warwick.json %{buildroot}%{_sysconfdir}/camd
@@ -40,17 +37,6 @@ Requires: python3-rockit-camera-qhy libqhyccd
 %{_bindir}/qhy_camd
 %defattr(0644,root,root,-)
 %{_unitdir}/qhy_camd@.service
-
-%package client
-Summary:  QHY camera client
-Group:    Unspecified
-Requires: python3-rockit-camera-qhy
-%description client
-
-%files client
-%defattr(0755,root,root,-)
-%{_bindir}/cam
-/etc/bash_completion.d/cam
 
 %package data-clasp
 Summary: QHY camera data for the CLASP telescope

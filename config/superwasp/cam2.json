@@ -4,6 +4,7 @@
   "pipeline_handover_timeout": 10,
   "log_name": "qhy_camd@swasp-cam2",
   "control_machines": ["SWASPTCS", "SWASPCameraPi1", "SWASPCameraPi2", "SWASPCameraPi3", "SWASPCameraPi4"],
+  "client_commands_module": "rockit.camera.qhy",
   "camera_device_id": "QHY600M-76461c429f51f351c",
   "cooler_setpoint": 0,
   "cooler_update_delay": 5,
