@@ -265,15 +265,6 @@ class QHYInterface:
                 log.error(self._config.log_name, f'Failed to set exposure time ({status})')
                 return
 
-            # Camera will sometimes return stale data out of the DDR buffer
-            # Resetting DDR flag seems to work for clearing the buffer
-            with self._driver_lock:
-                status = self._driver.SetQHYCCDParam(self._handle, QHYControl.DDR, c_double(1.0))
-
-            if status != QHYStatus.Success:
-                log.error(self._config.log_name, f'Failed to clear DDR ({status})')
-                return
-
             # Prepare the framebuffer offsets
             if not self._processing_framebuffer_offsets.empty():
                 log.error(self._config.log_name, 'Frame buffer offsets queue is not empty!')
@@ -287,6 +278,15 @@ class QHYInterface:
                 framebuffer_slots += 1
 
             if self._stream_frames:
+                # Camera will sometimes return stale data out of the DDR buffer
+                # Resetting DDR flag seems to work for clearing the buffer
+                with self._driver_lock:
+                    status = self._driver.SetQHYCCDParam(self._handle, QHYControl.DDR, c_double(1.0))
+
+                if status != QHYStatus.Success:
+                    log.error(self._config.log_name, f'Failed to clear DDR ({status})')
+                    return
+
                 with self._driver_lock:
                     status = self._driver.BeginQHYCCDLive(self._handle)
 
@@ -324,6 +324,15 @@ class QHYInterface:
             while not self._stop_acquisition and not self._processing_stop_signal.value:
                 self._sequence_exposure_start_time = Time.now()
                 if not self._stream_frames:
+                    # Camera will sometimes return stale data out of the DDR buffer
+                    # Resetting DDR flag seems to work for clearing the buffer
+                    with self._driver_lock:
+                        status = self._driver.SetQHYCCDParam(self._handle, QHYControl.DDR, c_double(1.0))
+
+                    if status != QHYStatus.Success:
+                        log.error(self._config.log_name, f'Failed to clear DDR ({status})')
+                        break
+
                     with self._driver_lock:
                         status = self._driver.ExpQHYCCDSingleFrame(self._handle)
 
