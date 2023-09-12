@@ -240,7 +240,7 @@ def output_process(process_queue, processing_framebuffer, processing_framebuffer
             setpoint_header = ('COMMENT', ' TEMP-SET not available', '')
 
         if frame['filter']:
-            filter_headers = ('FILTER', frame['filter'], 'filter in light path'),
+            filter_headers = [('FILTER', frame['filter'], 'filter in light path')]
         else:
             filter_headers = []
 
