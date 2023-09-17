@@ -108,7 +108,12 @@ def window_sensor_region(region, window):
 
 def bin_sensor_region(region, binning):
     """Calculate new region coordinates when binned by a given value"""
-    return [x // binning for x in region]
+    return [
+        (region[0] + binning - 1) // binning,
+        region[1] // binning,
+        (region[2] + binning - 1) // binning,
+        region[3] // binning
+    ]
 
 
 def format_sensor_region(region):
