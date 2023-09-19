@@ -20,11 +20,11 @@ mkdir -p %{buildroot}%{_udevrulesdir}
 
 %{__install} %{_sourcedir}/config/halfmetre.json %{buildroot}%{_sysconfdir}/camd
 %{__install} %{_sourcedir}/config/warwick.json %{buildroot}%{_sysconfdir}/camd
-%{__install} %{_sourcedir}/config/clasp/cam1.json %{buildroot}%{_sysconfdir}/camd/clasp_cam1.json
-%{__install} %{_sourcedir}/config/superwasp/cam1.json %{buildroot}%{_sysconfdir}/camd/superwasp_cam1.json
-%{__install} %{_sourcedir}/config/superwasp/cam2.json %{buildroot}%{_sysconfdir}/camd/superwasp_cam2.json
-%{__install} %{_sourcedir}/config/superwasp/cam3.json %{buildroot}%{_sysconfdir}/camd/superwasp_cam3.json
-%{__install} %{_sourcedir}/config/superwasp/cam4.json %{buildroot}%{_sysconfdir}/camd/superwasp_cam4.json
+%{__install} %{_sourcedir}/config/clasp/cam1.json %{buildroot}%{_sysconfdir}/camd/cam1.json.clasp
+%{__install} %{_sourcedir}/config/superwasp/cam1.json %{buildroot}%{_sysconfdir}/camd/cam1.json.superwasp
+%{__install} %{_sourcedir}/config/superwasp/cam2.json %{buildroot}%{_sysconfdir}/camd/cam2.json.superwasp
+%{__install} %{_sourcedir}/config/superwasp/cam3.json %{buildroot}%{_sysconfdir}/camd/cam3.json.superwasp
+%{__install} %{_sourcedir}/config/superwasp/cam4.json %{buildroot}%{_sysconfdir}/camd/cam4.json.superwasp
 
 %package server
 Summary:  QHY camera server
@@ -41,17 +41,12 @@ Requires: python3-rockit-camera-qhy libqhyccd
 %package data-clasp
 Summary: QHY camera data for the CLASP telescope
 Group:   Unspecified
+RemovePathPostfixes: .clasp
 %description data-clasp
-
-%post data-clasp
-mv %{_sysconfdir}/camd/clasp_cam1.json %{_sysconfdir}/camd/cam1.json
-
-%preun data-clasp
-mv %{_sysconfdir}/camd/cam1.json %{_sysconfdir}/camd/clasp_cam1.json
 
 %files data-clasp
 %defattr(0644,root,root,-)
-%{_sysconfdir}/camd/clasp_cam1.json
+%{_sysconfdir}/camd/cam1.json.clasp
 
 %package data-halfmetre
 Summary: QHY camera data for the half metre telescope
@@ -65,26 +60,15 @@ Group:   Unspecified
 %package data-superwasp
 Summary: QHY camera data for the SuperWASP telescope
 Group:   Unspecified
+RemovePathPostfixes: .superwasp
 %description data-superwasp
-
-%post data-superwasp
-mv %{_sysconfdir}/camd/superwasp_cam1.json %{_sysconfdir}/camd/cam1.json
-mv %{_sysconfdir}/camd/superwasp_cam2.json %{_sysconfdir}/camd/cam2.json
-mv %{_sysconfdir}/camd/superwasp_cam3.json %{_sysconfdir}/camd/cam3.json
-mv %{_sysconfdir}/camd/superwasp_cam4.json %{_sysconfdir}/camd/cam4.json
-
-%preun data-superwasp
-mv %{_sysconfdir}/camd/cam1.json %{_sysconfdir}/camd/superwasp_cam1.json
-mv %{_sysconfdir}/camd/cam2.json %{_sysconfdir}/camd/superwasp_cam2.json
-mv %{_sysconfdir}/camd/cam3.json %{_sysconfdir}/camd/superwasp_cam3.json
-mv %{_sysconfdir}/camd/cam4.json %{_sysconfdir}/camd/superwasp_cam4.json
 
 %files data-superwasp
 %defattr(0644,root,root,-)
-%{_sysconfdir}/camd/superwasp_cam1.json
-%{_sysconfdir}/camd/superwasp_cam2.json
-%{_sysconfdir}/camd/superwasp_cam3.json
-%{_sysconfdir}/camd/superwasp_cam4.json
+%{_sysconfdir}/camd/cam1.json.superwasp
+%{_sysconfdir}/camd/cam2.json.superwasp
+%{_sysconfdir}/camd/cam3.json.superwasp
+%{_sysconfdir}/camd/cam4.json.superwasp
 
 %package data-warwick
 Summary: QHY camera data for Windmill Hill observatory
