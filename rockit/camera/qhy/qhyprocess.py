@@ -198,6 +198,7 @@ class QHYInterface:
 
     def __cooler_thread(self):
         """Polls and updates cooler status"""
+        chiller_error = False
         while True:
             with self._driver_lock:
                 if self._driver is not None:
@@ -248,6 +249,17 @@ class QHYInterface:
                                                                      c_double(self._cooler_setpoint))
                                 if status != QHYStatus.Success:
                                     print(f'failed to set temperature to {self._cooler_setpoint} with status {status}')
+
+            if self._config.chiller_daemon and self._cooler_mode != CoolerMode.Warm:
+                try:
+                    with self._config.chiller_daemon.connect() as chiller:
+                        chiller.notify_camera_cooling_active()
+                    chiller_error = False
+                except Exception:
+                    if not chiller_error:
+                        log.error(self._config.log_name, 'Failed to notify chiller daemon of cooling status')
+                        chiller_error = True
+
             with self._cooler_condition:
                 self._cooler_condition.wait(self._config.cooler_update_delay)
 
