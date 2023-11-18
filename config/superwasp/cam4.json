@@ -3,9 +3,9 @@
   "pipeline_daemon": "superwasp_pipeline",
   "pipeline_handover_timeout": 10,
   "log_name": "qhy_camd@swasp-cam4",
-  "control_machines": ["SWASPTCS", "SWASPCameraPi1", "SWASPCameraPi2", "SWASPCameraPi3", "SWASPCameraPi4"],
+  "control_machines": ["SWASPTCS", "SWASPDAS1", "SWASPDAS2"],
   "client_commands_module": "rockit.camera.qhy",
-  "camera_device_id": "QHY600M-d2d7db449a559d4aa",
+  "camera_device_id": "QHY600MPCIE-d2d7db449a559d4aa",
   "cooler_setpoint": 0,
   "cooler_update_delay": 5,
   "cooler_pwm_step": 3,
@@ -19,7 +19,7 @@
   "filters": ["i"],
   "header_card_capacity": 144,
   "camera_id": "CAM4",
-  "output_path": "/data/incoming",
+  "output_path": "Z:/",
   "output_prefix": "cam4",
-  "expcount_path": "/data/cam4-counter.json"
+  "expcount_path": "cam4-counter.json"
 }
