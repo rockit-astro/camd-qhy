@@ -373,7 +373,7 @@ class QHYInterface:
                         log.error(self._config.log_name, f'Failed to download frame ({status})')
                         break
 
-                if self._stop_acquisition or self._processing_stop_signal.value:
+                if self._stop_acquisition or self._processing_stop_signal.value or status != QHYStatus.Success:
                     # Return unused slot back to the queue to simplify cleanup
                     self._processing_framebuffer_offsets.put(framebuffer_offset)
                     break
