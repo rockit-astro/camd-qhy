@@ -54,6 +54,8 @@ class QHYControl:
     COOLER = 18
     GPS = 36
     DDR = 48
+    HUMIDITY = 62
+    PRESSURE = 63
     UVLO_STATUS = 67
 
 
@@ -122,6 +124,8 @@ class QHYInterface:
         self._cooler_mode = CoolerMode.Unknown
         self._cooler_setpoint = config.cooler_setpoint
         self._cooler_temperature = 0
+        self._cooler_humidity = 0
+        self._cooler_pressure = 0
         self._cooler_pwm = 0
 
         self._exposure_time = 1
@@ -204,6 +208,8 @@ class QHYInterface:
                 if self._driver is not None:
                     # Query temperature status
                     temperature = self._driver.GetQHYCCDParam(self._handle, QHYControl.CURTEMP)
+                    humidity = self._driver.GetQHYCCDParam(self._handle, QHYControl.HUMIDITY)
+                    pressure = self._driver.GetQHYCCDParam(self._handle, QHYControl.PRESSURE)
                     pwm = self._driver.GetQHYCCDParam(self._handle, QHYControl.CURPWM)
 
                     if temperature == float(0xFFFFFFFF) or pwm == float(0xFFFFFFFF):
@@ -211,6 +217,8 @@ class QHYInterface:
                         return
 
                     self._cooler_temperature = temperature
+                    self._cooler_humidity = humidity
+                    self._cooler_pressure = pressure
                     self._cooler_pwm = pwm
 
                     if int(self._driver.GetQHYCCDParam(self._handle, QHYControl.UVLO_STATUS)) in [2, 3, 9]:
@@ -400,6 +408,8 @@ class QHYInterface:
                     'firmware_version': self._camera_firmware_version,
                     'cooler_mode': self._cooler_mode,
                     'cooler_temperature': self._cooler_temperature,
+                    'cooler_humidity': self._cooler_humidity,
+                    'cooler_pressure': self._cooler_pressure,
                     'cooler_pwm': self._cooler_pwm,
                     'cooler_setpoint': self._cooler_setpoint,
                     'window_region': self._window_region,
@@ -626,13 +636,15 @@ class QHYInterface:
                     6387
                 ]
 
+                self._cooler_temperature = driver.GetQHYCCDParam(self._handle, QHYControl.CURTEMP)
+                self._cooler_humidity = driver.GetQHYCCDParam(self._handle, QHYControl.HUMIDITY)
+                self._cooler_pressure = driver.GetQHYCCDParam(self._handle, QHYControl.PRESSURE)
+                self._cooler_pwm = driver.GetQHYCCDParam(self._handle, QHYControl.CURPWM)
+
                 self._driver = driver
                 self._handle = handle
                 initialized = True
                 print(f'camera {self._config.camera_device_id} initialized')
-
-                with self._cooler_condition:
-                    self._cooler_condition.notify()
 
                 if len(self._config.filters) > 1:
                     # Filter wheel takes ~16 seconds to home after power-on
@@ -672,6 +684,8 @@ class QHYInterface:
                     driver.ReleaseQHYCCDResource()
                 else:
                     log.info(self._config.log_name, 'Initialized camera')
+                    with self._cooler_condition:
+                        self._cooler_condition.notify()
 
 
     def set_target_temperature(self, temperature, quiet):
@@ -902,6 +916,8 @@ class QHYInterface:
             'state': state,
             'cooler_mode': self._cooler_mode,
             'cooler_temperature': self._cooler_temperature,
+            'cooler_humidity': self._cooler_humidity,
+            'cooler_pressure': self._cooler_pressure,
             'cooler_pwm': round(self._cooler_pwm / 2.55),  # byte to percentage
             'cooler_setpoint': self._cooler_setpoint,
             'temperature_locked': self._cooler_mode == CoolerMode.Locked,  # used by opsd
