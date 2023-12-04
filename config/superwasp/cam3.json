@@ -2,7 +2,7 @@
   "daemon": "superwasp_cam3",
   "pipeline_daemon": "superwasp_pipeline",
   "pipeline_handover_timeout": 10,
-  "log_name": "qhy_camd@swasp-cam1",
+  "log_name": "qhy_camd@swasp-cam3",
   "control_machines": ["SWASPTCS", "SWASPDAS1", "SWASPDAS2"],
   "client_commands_module": "rockit.camera.qhy",
   "camera_device_id": "QHY600MPCIE-cc43e441b594aba43",
