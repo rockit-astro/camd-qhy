@@ -669,10 +669,10 @@ class QHYInterface:
                         driver.CloseQHYCCD(handle)
 
                     log.error(self._config.log_name, 'Failed to initialize camera')
+                    driver.ReleaseQHYCCDResource()
                 else:
                     log.info(self._config.log_name, 'Initialized camera')
 
-                driver.ReleaseQHYCCDResource()
 
     def set_target_temperature(self, temperature, quiet):
         """Set the target camera temperature"""
@@ -928,6 +928,7 @@ class QHYInterface:
         with self._driver_lock:
             print('shutdown: disconnecting driver')
             self._driver.CloseQHYCCD(self._handle)
+            self._driver.ReleaseQHYCCDResource()
             self._driver = None
 
         log.info(self._config.log_name, 'Shutdown camera')
