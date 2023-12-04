@@ -79,6 +79,76 @@ def open_device(driver, camera_device_id):
     return None
 
 
+def try_read_bias(log_name, driver, handle, stream, width, height):
+    """
+    Attempts to read a bias image to work around frame-timeout issues
+    after an initialize or stream/single mode switch
+    """
+    exposure = driver.GetQHYCCDParam(handle, QHYControl.EXPOSURE)
+    if exposure == float(0xFFFFFFFF):
+        print('Failed to query exposure time in try_read_bias')
+        return False
+
+    status = driver.SetQHYCCDParam(handle, QHYControl.EXPOSURE, c_double(0.0))
+    if status != QHYStatus.Success:
+        print(f'Failed to set exposure time in try_read_bias ({status})')
+        return False
+
+    frame_size = 2 * width * height
+    width = c_uint32(width)
+    height = c_uint32(height)
+    bpp = c_uint32(16)
+    channels = c_uint32(1)
+
+    data = bytearray(frame_size)
+    cdata = (c_uint8 * frame_size).from_buffer(data)
+    attempts = 0
+    while True:
+        if attempts > 0:
+            time.sleep(1)
+
+        attempts += 1
+        if attempts == 6:
+            log.error(log_name, 'Failing after 5 failed attempts in try_read_bias')
+            return False
+
+        if stream:
+            status = driver.BeginQHYCCDLive(handle)
+            if status != QHYStatus.Success:
+                log.error(log_name, f'Failed to start exposure in try_read_bias ({status})')
+                continue
+
+            status = QHYStatus.Error
+            start = Time.now()
+            while status != QHYStatus.Success:
+                status = driver.GetQHYCCDLiveFrame(
+                    handle, byref(width), byref(height), byref(bpp), byref(channels), cdata)
+                time.sleep(0.25)
+                if Time.now() - start > 5 * u.s:
+                    log.error(log_name, 'Exposure timed out in try_read_bias')
+                    driver.CancelQHYCCDExposingAndReadout(handle)
+                    driver.StopQHYCCDLive(handle)
+                    continue
+        else:
+            status = driver.ExpQHYCCDSingleFrame(handle)
+            if status == QHYStatus.Error:
+                log.error(log_name, f'Failed to start exposure in try_read_bias ({status})')
+                continue
+
+            status = driver.GetQHYCCDSingleFrame(
+                handle, byref(width), byref(height), byref(bpp), byref(channels), cdata)
+
+            if status != QHYStatus.Success:
+                log.error(log_name, f'Failed to download frame in try_read_bias ({status})')
+                continue
+
+        if status == QHYStatus.Success:
+            break
+
+    driver.SetQHYCCDParam(handle, QHYControl.EXPOSURE, c_double(exposure))
+    return True
+
+
 class QHYInterface:
     def __init__(self, config, processing_queue,
                  processing_framebuffer, processing_framebuffer_offsets,
@@ -604,6 +674,11 @@ class QHYInterface:
                     print(f'failed to set 16bit readout with status {status}')
                     return CommandStatus.Failed
 
+                status = driver.SetQHYCCDSingleFrameTimeOut(handle, 5000)
+                if status != QHYStatus.Success:
+                    print(f'failed to set single-frame time out with status {status}')
+                    return CommandStatus.Failed
+
                 # Regions are 0-indexed x1,x2,y1,2
                 # These are converted to 1-indexed when writing fits headers
                 self._window_region = [
@@ -635,6 +710,10 @@ class QHYInterface:
                     self._window_region[2],
                     6387
                 ]
+
+                if not try_read_bias(self._config.log_name, driver, handle, self._stream_frames,
+                                     self._readout_width, self._readout_height):
+                    return CommandStatus.Failed
 
                 self._cooler_temperature = driver.GetQHYCCDParam(self._handle, QHYControl.CURTEMP)
                 self._cooler_humidity = driver.GetQHYCCDParam(self._handle, QHYControl.HUMIDITY)
@@ -848,6 +927,10 @@ class QHYInterface:
                 if status != QHYStatus.Success:
                     print(f'failed to set GPS box with status {status}')
                     return CommandStatus.Failed
+
+            if not try_read_bias(self._config.log_name, self._driver, self._handle, self._stream_frames,
+                                 self._readout_width, self._readout_height):
+                return CommandStatus.Failed
 
             if not quiet:
                 log.info(self._config.log_name, f'Streaming set to {stream}')

@@ -190,7 +190,7 @@ def set_streaming(config, usage_prefix, args):
     """Set the camera streaming mode"""
     if len(args) == 1 and (args[0] == 'enable' or args[0] == 'disable'):
         enabled = args[0] == 'enable'
-        with config.daemon.connect() as camd:
+        with config.daemon.connect(timeout=20) as camd:
             return camd.set_frame_streaming(enabled)
     print(f'usage: {usage_prefix} stream (enable|disable)')
     return -1
@@ -238,8 +238,7 @@ def stop(config, *_):
 
 def initialize(config, *_):
     """Enables the camera driver"""
-    # Initialization can take more than 5 sec, so bump timeout to 10.
-    with config.daemon.connect(10) as camd:
+    with config.daemon.connect(30) as camd:
         return camd.initialize()
 
 
