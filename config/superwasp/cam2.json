@@ -19,7 +19,7 @@
   "filters": ["RGB-G"],
   "header_card_capacity": 144,
   "camera_id": "CAM2",
-  "output_path": "Z:/",
+  "output_path": "R:/",
   "output_prefix": "cam2",
   "expcount_path": "cam2-counter.json"
 }

@@ -19,7 +19,7 @@
   "filters": ["i"],
   "header_card_capacity": 144,
   "camera_id": "CAM4",
-  "output_path": "Z:/",
+  "output_path": "R:/",
   "output_prefix": "cam4",
   "expcount_path": "cam4-counter.json"
 }

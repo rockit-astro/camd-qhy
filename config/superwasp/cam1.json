@@ -19,7 +19,7 @@
   "filters": ["RGB-B"],
   "header_card_capacity": 144,
   "camera_id": "CAM1",
-  "output_path": "Z:/",
+  "output_path": "R:/",
   "output_prefix": "cam1",
   "expcount_path": "cam1-counter.json"
 }
