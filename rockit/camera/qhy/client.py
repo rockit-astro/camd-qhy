@@ -239,7 +239,9 @@ def stop(config, *_):
 def initialize(config, *_):
     """Enables the camera driver"""
     # Initialization can take more than 5 sec, so bump timeout to 10.
-    with config.daemon.connect(10) as camd:
+    # Filter wheel takes ~16 seconds to home after power-on, so allow an extra 20 to compensate
+    timeout = 30 if len(config.filters) > 1 else 10
+    with config.daemon.connect(timeout=timeout) as camd:
         return camd.initialize()
 
 
