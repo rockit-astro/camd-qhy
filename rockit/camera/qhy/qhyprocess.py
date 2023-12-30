@@ -604,6 +604,11 @@ class QHYInterface:
                     print(f'failed to set 16bit readout with status {status}')
                     return CommandStatus.Failed
 
+                status = driver.SetQHYCCDSingleFrameTimeOut(handle, 5000)
+                if status != QHYStatus.Success:
+                    print(f'failed to set single-frame time out with status {status}')
+                    return CommandStatus.Failed
+
                 # Regions are 0-indexed x1,x2,y1,2
                 # These are converted to 1-indexed when writing fits headers
                 self._window_region = [
