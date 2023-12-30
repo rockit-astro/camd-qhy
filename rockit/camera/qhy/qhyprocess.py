@@ -33,6 +33,7 @@ import time
 import traceback
 from astropy.time import Time
 import astropy.units as u
+import numpy as np
 import Pyro4
 from rockit.common import log
 from .constants import CommandStatus, CameraStatus, CoolerMode
@@ -377,11 +378,17 @@ class QHYInterface:
                         status = self._driver.GetQHYCCDSingleFrame(
                             self._handle, byref(width), byref(height), byref(bpp), byref(channels), cdata)
 
-                    if status != QHYStatus.Success:
-                        log.error(self._config.log_name, f'Failed to download frame ({status})')
-                        break
+                    # Check for a timed out exposure (all-zero buffer)
+                    # The GPS sequence number will never be zero for a real frame
+                    seqnum = np.frombuffer(self._processing_framebuffer, dtype=np.dtype('>u4'),
+                                           offset=framebuffer_offset, count=1)[0]
 
-                if self._stop_acquisition or self._processing_stop_signal.value or status != QHYStatus.Success:
+                    if status != QHYStatus.Success or seqnum == 0:
+                        log.warning(self._config.log_name, f'Exposure failed')
+                        self._processing_framebuffer_offsets.put(framebuffer_offset)
+                        continue
+
+                if self._stop_acquisition or self._processing_stop_signal.value:
                     # Return unused slot back to the queue to simplify cleanup
                     self._processing_framebuffer_offsets.put(framebuffer_offset)
                     break
@@ -602,6 +609,11 @@ class QHYInterface:
                 status = driver.SetQHYCCDBitsMode(handle, 16)
                 if status != QHYStatus.Success:
                     print(f'failed to set 16bit readout with status {status}')
+                    return CommandStatus.Failed
+
+                status = driver.SetQHYCCDSingleFrameTimeOut(handle, 10000)
+                if status != QHYStatus.Success:
+                    print(f'failed to set single-frame time out with status {status}')
                     return CommandStatus.Failed
 
                 # Regions are 0-indexed x1,x2,y1,2
