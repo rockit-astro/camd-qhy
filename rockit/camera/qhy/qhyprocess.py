@@ -279,7 +279,7 @@ class QHYInterface:
         framebuffer_slots = 0
         try:
             with self._driver_lock:
-                exp = c_double(int(1e6 * self._exposure_time))
+                exp = c_double(max(int(1e6 * self._exposure_time), 1))
                 status = self._driver.SetQHYCCDParam(self._handle, QHYControl.EXPOSURE, exp)
 
             if status != QHYStatus.Success:
