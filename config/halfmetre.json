@@ -15,6 +15,7 @@
   "gain": 26,
   "offset": 30,
   "binning": 2,
+  "stream": true,
   "use_gpsbox": true,
   "filters": ["NONE", "BLOCK"],
   "header_card_capacity": 144,

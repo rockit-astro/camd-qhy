@@ -545,8 +545,8 @@ class QHYInterface:
 
                 self._mode_name = mode_name.value.decode('ascii')
 
-                self._stream_frames = True
-                status = driver.SetQHYCCDStreamMode(handle, 1)
+                self._stream_frames = self._config.stream
+                status = driver.SetQHYCCDStreamMode(handle, self._config.stream)
                 if status != QHYStatus.Success:
                     print(f'failed to set stream mode with status {status}')
                     return CommandStatus.Failed

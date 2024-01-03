@@ -293,7 +293,7 @@ class CameraDaemon:
             offset = params.get('offset', self._config.offset)
             self.qhy_command('offset', offset=offset, quiet=quiet)
 
-            stream = params.get('stream', True)
+            stream = params.get('stream', self._config.stream)
             self.qhy_command('stream', stream=stream, quiet=quiet)
 
             if len(self._config.filters) > 1:
