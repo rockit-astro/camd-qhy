@@ -648,10 +648,10 @@ class QHYInterface:
                     6387
                 ]
 
-                self._cooler_temperature = driver.GetQHYCCDParam(self._handle, QHYControl.CURTEMP)
-                self._cooler_humidity = driver.GetQHYCCDParam(self._handle, QHYControl.HUMIDITY)
-                self._cooler_pressure = driver.GetQHYCCDParam(self._handle, QHYControl.PRESSURE)
-                self._cooler_pwm = driver.GetQHYCCDParam(self._handle, QHYControl.CURPWM)
+                self._cooler_temperature = driver.GetQHYCCDParam(handle, QHYControl.CURTEMP)
+                self._cooler_humidity = driver.GetQHYCCDParam(handle, QHYControl.HUMIDITY)
+                self._cooler_pressure = driver.GetQHYCCDParam(handle, QHYControl.PRESSURE)
+                self._cooler_pwm = driver.GetQHYCCDParam(handle, QHYControl.CURPWM)
 
                 self._driver = driver
                 self._handle = handle
