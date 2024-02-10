@@ -9,7 +9,7 @@
   "cooler_setpoint": 0,
   "cooler_update_delay": 5,
   "cooler_pwm_step": 3,
-  "worker_processes": 8,
+  "worker_processes": 12,
   "framebuffer_bytes": 1972838400,
   "mode": 0,
   "gain": 26,
