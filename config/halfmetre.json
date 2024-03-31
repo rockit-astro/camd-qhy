@@ -17,7 +17,7 @@
   "binning": 2,
   "stream": true,
   "use_gpsbox": true,
-  "filters": ["NONE", "BLOCK"],
+  "filters": ["NONE", "BLOCK", "B", "V", "R"],
   "header_card_capacity": 144,
   "camera_id": "HALFMETRE",
   "output_path": "/data/incoming/",
