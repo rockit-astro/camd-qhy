@@ -780,7 +780,7 @@ class QHYInterface:
 
             # Convert from 1-indexed to 0-indexed
             self._window_region = [x - 1 for x in window]
-
+            return CommandStatus.Succeeded
         else:
             return CommandStatus.Failed
 
