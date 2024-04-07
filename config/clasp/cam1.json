@@ -2,7 +2,6 @@
   "daemon": "clasp_camera_1",
   "pipeline_daemon": "clasp_pipeline",
   "pipeline_handover_timeout": 10,
-  "chiller_daemon": "clasp_chiller",
   "log_name": "qhy_camd@cam1",
   "control_machines": ["CLASPTCS", "CLASPDAS"],
   "client_commands_module": "rockit.camera.qhy",
