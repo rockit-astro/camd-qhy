@@ -17,7 +17,7 @@
 """client command input handlers"""
 
 import Pyro4
-from rockit.common import TFmt
+from rockit.common import print
 from .config import Config
 from .constants import CommandStatus, CameraStatus, CoolerMode
 
@@ -87,34 +87,31 @@ def status(config, *_):
 
     state_desc = CameraStatus.label(data['state'], True)
     if data['state'] == CameraStatus.Acquiring:
-        progress = f'{data["exposure_progress"]:.1f} / {data["exposure_time"]:.1f}s'
-        state_desc += ' (' + TFmt.Bold + progress + TFmt.Clear + ')'
+        state_desc += f' ([b]{data["exposure_progress"]:.1f} / {data["exposure_time"]:.1f}s[/b])'
 
     # Camera is disabled
     print(f'   Camera is {state_desc}')
     if data['state'] != CameraStatus.Disabled:
         if data['state'] > CameraStatus.Idle:
             if data['sequence_frame_limit'] > 0:
-                print(f'   Acquiring frame {TFmt.Bold}{data["sequence_frame_count"] + 1}' +
-                      f' / {data["sequence_frame_limit"]}{TFmt.Clear}')
+                print(f'   Acquiring frame [b]{data["sequence_frame_count"] + 1} / {data["sequence_frame_limit"]}[/b]')
             else:
-                print(f'   Acquiring {TFmt.Bold}UNTIL STOPPED{TFmt.Clear}')
+                print(f'   Acquiring [b]UNTIL STOPPED[/b]')
 
-        print(f'   Temperature is {TFmt.Bold}{data["cooler_temperature"]:.0f}\u00B0C{TFmt.Clear}' +
-              f' ({TFmt.Bold}{data["cooler_pwm"]:.0f}{TFmt.Clear}% power, ' +
-              CoolerMode.label(data['cooler_mode'], True) + ')')
+        print(f'   Temperature is [b]{data["cooler_temperature"]:.0f}\u00B0C[/b]' +
+              f' ([b]{data["cooler_pwm"]:.0f}%[/b] power, {CoolerMode.label(data["cooler_mode"], True)})')
 
         if data['cooler_setpoint'] is not None:
-            print(f'   Temperature set point is {TFmt.Bold}{data["cooler_setpoint"]:.0f}\u00B0C{TFmt.Clear}')
+            print(f'   Temperature set point is [b]{data["cooler_setpoint"]:.0f}\u00B0C[/b]')
 
-        print(f'   Frame streaming is {TFmt.Bold}{"ENABLED" if data["stream"] else "DISABLED"}{TFmt.Clear}')
-        print(f'   Exposure time is {TFmt.Bold}{data["exposure_time"]:.3f} s{TFmt.Clear}')
+        print(f'   Frame streaming is [b]{"ENABLED" if data["stream"] else "DISABLED"}[/b]')
+        print(f'   Exposure time is [b]{data["exposure_time"]:.3f} s[/b]')
 
         w = [x + 1 for x in data['window']]
-        print(f'   Output window is {TFmt.Bold}[{w[0]}:{w[1]},{w[2]}:{w[3]}]{TFmt.Clear}')
-        print(f'   Binning is {TFmt.Bold}{data["binning"]}x{data["binning"]}{TFmt.Clear} ({TFmt.Bold}{data["binning_method"]}{TFmt.Clear})')
+        print(f'   Output window is [b]\\[{w[0]}:{w[1]},{w[2]}:{w[3]}][/b]')
+        print(f'   Binning is [b]{data["binning"]}x{data["binning"]}[/b] ([b]{data["binning_method"]}[/b])')
         if data['filter']:
-            print(f'   Filter is {TFmt.Bold}{data["filter"]}{TFmt.Clear}')
+            print(f'   Filter is [b]{data["filter"]}[/b]')
     return 0
 
 
@@ -205,7 +202,7 @@ def set_filter(config, usage_prefix, args):
     if len(args) == 1 and (args[0] in config.filters):
         with config.daemon.connect() as camd:
             return camd.set_filter(args[0])
-    print(f'usage: {usage_prefix} filter [{"|".join(config.filters)}]')
+    print(f'usage: {usage_prefix} filter \\[{"|".join(config.filters)}]')
     return -1
 
 
@@ -257,7 +254,7 @@ def shutdown(config, *_):
 
 def print_usage(usage_prefix):
     """Prints the utility help"""
-    print(f'usage: {usage_prefix} <command> [<args>]')
+    print(f'usage: {usage_prefix} <command> \\[<args>]')
     print()
     print('general commands:')
     print('   status       print a human-readable summary of the camera status')
