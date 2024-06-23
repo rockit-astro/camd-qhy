@@ -111,6 +111,7 @@ class QHYInterface:
         # Crop output data to detector coordinates
         self._window_region = [0, 0, 0, 0]
         self._binning = config.binning
+        self._binning_method = config.binning_method
 
         # Image geometry (marking edges of overscan etc)
         self._image_region = [0, 0, 0, 0]
@@ -410,6 +411,7 @@ class QHYInterface:
                     'cooler_setpoint': self._cooler_setpoint,
                     'window_region': self._window_region,
                     'binning': self._binning,
+                    'binning_method': self._binning_method,
                     'image_region': self._image_region,
                     'bias_region': self._bias_region,
                     'dark_region': self._dark_region,
@@ -773,7 +775,7 @@ class QHYInterface:
         else:
             return CommandStatus.Failed
 
-    def set_binning(self, binning, quiet):
+    def set_binning(self, binning, method, quiet):
         """Set the camera binning"""
         if self.is_acquiring:
             return CommandStatus.CameraNotIdle
@@ -781,13 +783,20 @@ class QHYInterface:
         if binning is None:
             binning = self._config.binning
 
+        if method is None:
+            method = self._config.binning_method
+
         if not isinstance(binning, int) or binning < 1:
             return CommandStatus.Failed
 
+        if method not in ['sum', 'mean']:
+            return CommandStatus.Failed
+
         self._binning = binning
+        self._binning_method = method
 
         if not quiet:
-            log.info(self._config.log_name, f'Binning set to {binning}')
+            log.info(self._config.log_name, f'Binning set to {binning} ({method})')
 
         return CommandStatus.Succeeded
 
@@ -926,6 +935,7 @@ class QHYInterface:
             'exposure_progress': exposure_progress,
             'window': self._window_region,
             'binning': self._binning,
+            'binning_method': self._binning_method,
             'sequence_frame_limit': self._sequence_frame_limit,
             'sequence_frame_count': sequence_frame_count,
             'filter': self._filter,
@@ -986,7 +996,7 @@ def qhy_process(camd_pipe, config,
                 elif command == 'window':
                     camd_pipe.send(cam.set_window(args['window'], args['quiet']))
                 elif command == 'binning':
-                    camd_pipe.send(cam.set_binning(args['binning'], args['quiet']))
+                    camd_pipe.send(cam.set_binning(args['binning'], args['method'], args['quiet']))
                 elif command == 'start':
                     camd_pipe.send(cam.start_sequence(args['count'], args['quiet']))
                 elif command == 'stop':

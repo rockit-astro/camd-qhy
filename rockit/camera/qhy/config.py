@@ -26,9 +26,9 @@ CONFIG_SCHEMA = {
     'additionalProperties': False,
     'required': [
         'daemon', 'pipeline_daemon', 'pipeline_handover_timeout', 'log_name', 'control_machines',
-        'client_commands_module',
-        'camera_device_id', 'camera_id', 'cooler_setpoint', 'cooler_update_delay', 'cooler_pwm_step',
-        'worker_processes', 'framebuffer_bytes', 'mode', 'gain', 'offset', 'binning', 'stream', 'use_gpsbox',
+        'client_commands_module', 'camera_device_id', 'camera_id',
+        'cooler_setpoint', 'cooler_update_delay', 'cooler_pwm_step', 'worker_processes',
+        'framebuffer_bytes', 'mode', 'gain', 'offset', 'binning', 'binning_method', 'stream', 'use_gpsbox',
         'header_card_capacity', 'output_path', 'output_prefix', 'expcount_path'
     ],
     'properties': {
@@ -101,6 +101,10 @@ CONFIG_SCHEMA = {
             'min': 1,
             'max': 9600,
         },
+        'binning_method': {
+            'type': 'string',
+            'enum': ['sum', 'mean'],
+        },
         'stream': {
             'type': 'boolean',
         },
@@ -164,6 +168,7 @@ class Config:
         self.gain = config_json['gain']
         self.offset = config_json['offset']
         self.binning = config_json['binning']
+        self.binning_method = config_json['binning_method']
         self.stream = config_json['stream']
         self.use_gpsbox = config_json['use_gpsbox']
         self.filters = config_json.get('filters', [])

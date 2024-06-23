@@ -15,6 +15,7 @@
   "gain": 56,
   "offset": 30,
   "binning": 3,
+  "binning_method": "sum",
   "stream": false,
   "use_gpsbox": true,
   "header_card_capacity": 144,

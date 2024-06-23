@@ -199,7 +199,7 @@ class CameraDaemon:
             return self.qhy_command('window', window=window, quiet=quiet)
 
     @Pyro4.expose
-    def set_binning(self, binning, quiet=False):
+    def set_binning(self, binning, method, quiet=False):
         """Sets the sensor binning factor"""
         if not pyro_client_matches(self._config.control_ips):
             return CommandStatus.InvalidControlIP
@@ -208,7 +208,7 @@ class CameraDaemon:
             if not success:
                 return CommandStatus.Blocked
 
-            return self.qhy_command('binning', binning=binning, quiet=quiet)
+            return self.qhy_command('binning', binning=binning, method=method, quiet=quiet)
 
     @Pyro4.expose
     def set_gain(self, gain, quiet=False):
@@ -257,6 +257,7 @@ class CameraDaemon:
               exposure: Exposure time in seconds
               window: Tuple of 1-indexed (x1, x2, y1, y2)
               bin: number of pixels to bin in x,y
+              bin_method: add or mean
               gain: Gain setting
               offset: Offset (bias) setting
               stream: stream (live) exposures or take individual frames
@@ -285,7 +286,8 @@ class CameraDaemon:
             self.qhy_command('window', window=window, quiet=quiet)
 
             binning = params.get('bin', self._config.binning)
-            self.qhy_command('binning', binning=binning, quiet=quiet)
+            method = params.get('bin_method', self._config.binning_method)
+            self.qhy_command('binning', binning=binning, method=method, quiet=quiet)
 
             gain = params.get('gain', self._config.gain)
             self.qhy_command('gain', gain=gain, quiet=quiet)
