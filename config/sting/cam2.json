@@ -1,11 +1,11 @@
 {
-  "daemon": "superwasp_cam3",
-  "pipeline_daemon": "superwasp_pipeline",
+  "daemon": "sting_cam2",
+  "pipeline_daemon": "sting_pipeline",
   "pipeline_handover_timeout": 10,
-  "log_name": "qhy_camd@swasp-cam3",
-  "control_machines": ["SWASPTCS", "SWASPDAS1", "SWASPDAS2"],
+  "log_name": "qhy_camd@sting-cam2",
+  "control_machines": ["STINGTCS", "STINGDAS1", "STINGDAS2"],
   "client_commands_module": "rockit.camera.qhy",
-  "camera_device_id": "QHY600MPCIE-cc43e441b594aba43",
+  "camera_device_id": "QHY600MPCIE-76461c429f51f351c",
   "cooler_setpoint": 0,
   "cooler_update_delay": 5,
   "cooler_pwm_step": 3,
@@ -18,10 +18,10 @@
   "binning_method": "sum",
   "stream": true,
   "use_gpsbox": true,
-  "filters": ["RGB-R"],
+  "filters": ["RGB-G"],
   "header_card_capacity": 144,
-  "camera_id": "CAM3",
+  "camera_id": "CAM2",
   "output_path": "R:/",
-  "output_prefix": "cam3",
-  "expcount_path": "cam3-counter.json"
+  "output_prefix": "cam2",
+  "expcount_path": "cam2-counter.json"
 }

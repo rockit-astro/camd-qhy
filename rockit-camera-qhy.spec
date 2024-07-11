@@ -21,10 +21,10 @@ mkdir -p %{buildroot}%{_udevrulesdir}
 %{__install} %{_sourcedir}/config/halfmetre.json %{buildroot}%{_sysconfdir}/camd
 %{__install} %{_sourcedir}/config/warwick.json %{buildroot}%{_sysconfdir}/camd
 %{__install} %{_sourcedir}/config/clasp/cam1.json %{buildroot}%{_sysconfdir}/camd/cam1.json.clasp
-%{__install} %{_sourcedir}/config/superwasp/cam1.json %{buildroot}%{_sysconfdir}/camd/cam1.json.superwasp
-%{__install} %{_sourcedir}/config/superwasp/cam2.json %{buildroot}%{_sysconfdir}/camd/cam2.json.superwasp
-%{__install} %{_sourcedir}/config/superwasp/cam3.json %{buildroot}%{_sysconfdir}/camd/cam3.json.superwasp
-%{__install} %{_sourcedir}/config/superwasp/cam4.json %{buildroot}%{_sysconfdir}/camd/cam4.json.superwasp
+%{__install} %{_sourcedir}/config/sting/cam1.json %{buildroot}%{_sysconfdir}/camd/cam1.json.sting
+%{__install} %{_sourcedir}/config/sting/cam2.json %{buildroot}%{_sysconfdir}/camd/cam2.json.sting
+%{__install} %{_sourcedir}/config/sting/cam3.json %{buildroot}%{_sysconfdir}/camd/cam3.json.sting
+%{__install} %{_sourcedir}/config/sting/cam4.json %{buildroot}%{_sysconfdir}/camd/cam4.json.sting
 
 %package server
 Summary:  QHY camera server
@@ -57,18 +57,18 @@ Group:   Unspecified
 %defattr(0644,root,root,-)
 %{_sysconfdir}/camd/halfmetre.json
 
-%package data-superwasp
-Summary: QHY camera data for the SuperWASP telescope
+%package data-sting
+Summary: QHY camera data for the STING telescope
 Group:   Unspecified
-RemovePathPostfixes: .superwasp
-%description data-superwasp
+RemovePathPostfixes: .sting
+%description data-sting
 
-%files data-superwasp
+%files data-sting
 %defattr(0644,root,root,-)
-%{_sysconfdir}/camd/cam1.json.superwasp
-%{_sysconfdir}/camd/cam2.json.superwasp
-%{_sysconfdir}/camd/cam3.json.superwasp
-%{_sysconfdir}/camd/cam4.json.superwasp
+%{_sysconfdir}/camd/cam1.json.sting
+%{_sysconfdir}/camd/cam2.json.sting
+%{_sysconfdir}/camd/cam3.json.sting
+%{_sysconfdir}/camd/cam4.json.sting
 
 %package data-warwick
 Summary: QHY camera data for Windmill Hill observatory

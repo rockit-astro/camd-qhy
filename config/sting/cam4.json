@@ -1,9 +1,9 @@
 {
-  "daemon": "superwasp_cam4",
-  "pipeline_daemon": "superwasp_pipeline",
+  "daemon": "sting_cam4",
+  "pipeline_daemon": "sting_pipeline",
   "pipeline_handover_timeout": 10,
-  "log_name": "qhy_camd@swasp-cam4",
-  "control_machines": ["SWASPTCS", "SWASPDAS1", "SWASPDAS2"],
+  "log_name": "qhy_camd@sting-cam4",
+  "control_machines": ["STINGTCS", "STINGDAS1", "STINGDAS2"],
   "client_commands_module": "rockit.camera.qhy",
   "camera_device_id": "QHY600MPCIE-d2d7db449a559d4aa",
   "cooler_setpoint": 0,
