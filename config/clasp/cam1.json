@@ -5,7 +5,7 @@
   "log_name": "qhy_camd@cam1",
   "control_machines": ["CLASPTCS", "CLASPDAS"],
   "client_commands_module": "rockit.camera.qhy",
-  "camera_device_id": "QHY600MPCIE-a2cf7e47ad5b6da47",
+  "camera_device_id": "QHY600MPCIE-4714d44c9ff6dc6db",
   "cooler_setpoint": -10,
   "cooler_update_delay": 5,
   "cooler_pwm_step": 3,
