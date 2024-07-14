@@ -163,7 +163,7 @@ def set_window(config, usage_prefix, args):
         with config.daemon.connect() as camd:
             return camd.set_window(window)
 
-    print(f'usage: {usage_prefix} window (<x1> <x2> <y1> <y2>|default)')
+    print(f'usage: {usage_prefix} window <x1 x2 y1 y2|default>')
     return -1
 
 
@@ -175,11 +175,11 @@ def set_binning(config, usage_prefix, args):
         try:
             binning = int(args[0])
         except ValueError:
-            print(f'usage: {usage_prefix} bin <pixels> (sum|mean)')
+            print(f'usage: {usage_prefix} bin <pixels> <sum|mean>')
             return -1
         method = args[1]
     else:
-        print(f'usage: {usage_prefix} bin <pixels> (sum|mean)')
+        print(f'usage: {usage_prefix} bin <pixels> <sum|mean>')
         return -1
 
     with config.daemon.connect() as camd:
@@ -193,7 +193,7 @@ def set_streaming(config, usage_prefix, args):
         enabled = args[0] == 'enable'
         with config.daemon.connect() as camd:
             return camd.set_frame_streaming(enabled)
-    print(f'usage: {usage_prefix} stream (enable|disable)')
+    print(f'usage: {usage_prefix} stream <enable|disable>')
     return -1
 
 
@@ -202,7 +202,7 @@ def set_filter(config, usage_prefix, args):
     if len(args) == 1 and (args[0] in config.filters):
         with config.daemon.connect() as camd:
             return camd.set_filter(args[0])
-    print(f'usage: {usage_prefix} filter \\[{"|".join(config.filters)}]')
+    print(f'usage: {usage_prefix} filter <{"|".join(config.filters)}>')
     return -1
 
 
@@ -227,7 +227,7 @@ def start(config, usage_prefix, args):
         except Exception:
             print('error: invalid exposure count:', args[0])
             return -1
-    print(f'usage: {usage_prefix} start (continuous|<count>)')
+    print(f'usage: {usage_prefix} start <continuous|(count)>')
     return -1
 
 
