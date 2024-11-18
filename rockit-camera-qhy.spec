@@ -20,7 +20,7 @@ mkdir -p %{buildroot}%{_udevrulesdir}
 
 %{__install} %{_sourcedir}/config/halfmetre.json %{buildroot}%{_sysconfdir}/camd
 %{__install} %{_sourcedir}/config/warwick.json %{buildroot}%{_sysconfdir}/camd
-%{__install} %{_sourcedir}/config/clasp/cam1.json %{buildroot}%{_sysconfdir}/camd/cam1.json.clasp
+%{__install} %{_sourcedir}/config/clasp/cmos.json %{buildroot}%{_sysconfdir}/camd/cmos.json.clasp
 %{__install} %{_sourcedir}/config/sting/cam1.json %{buildroot}%{_sysconfdir}/camd/cam1.json.sting
 %{__install} %{_sourcedir}/config/sting/cam2.json %{buildroot}%{_sysconfdir}/camd/cam2.json.sting
 %{__install} %{_sourcedir}/config/sting/cam3.json %{buildroot}%{_sysconfdir}/camd/cam3.json.sting
@@ -47,7 +47,7 @@ RemovePathPostfixes: .clasp
 
 %files data-clasp
 %defattr(0644,root,root,-)
-%{_sysconfdir}/camd/cam1.json.clasp
+%{_sysconfdir}/camd/cmos.json.clasp
 
 %package data-halfmetre
 Summary: QHY camera data for the half metre telescope

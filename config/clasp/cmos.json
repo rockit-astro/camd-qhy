@@ -1,9 +1,9 @@
 {
-  "daemon": "clasp_camera_1",
+  "daemon": "clasp_camera_cmos",
   "pipeline_daemon": "clasp_pipeline",
   "pipeline_handover_timeout": 10,
-  "log_name": "qhy_camd@cam1",
-  "control_machines": ["CLASPTCS", "CLASPDAS"],
+  "log_name": "qhy_camd@clasp-cmos",
+  "control_machines": ["CLASPTCS", "CLASPCMOS", "CLASPSWIR"],
   "client_commands_module": "rockit.camera.qhy",
   "camera_device_id": "QHY600MPCIE-4714d44c9ff6dc6db",
   "cooler_setpoint": -10,
@@ -20,7 +20,7 @@
   "use_gpsbox": true,
   "filters": ["NONE"],
   "header_card_capacity": 144,
-  "camera_id": "CAM1",
+  "camera_id": "CMOS",
   "output_path": "R:/",
   "output_prefix": "cam1",
   "expcount_path": "cam1-counter.json"
