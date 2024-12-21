@@ -169,7 +169,9 @@ def output_process(process_queue, processing_framebuffer, processing_framebuffer
             vsync_timestamp = GPSData.create_timestamp(gps.NowSeconds, gps.NowCounts)
             vsync_status = GPSData.create_status(gps.NowFlag)
 
-            if vsync_status == 'LOCKED':
+            # Bogus GPS data may spuriously report a locked status,
+            #  so check also against PPSDelta which should be close to 10 MHz.
+            if vsync_status == 'LOCKED' and 9000000 < gps.PPSDelta <= 10000500:
                 end_seconds = gps.NowSeconds + frame['readout_offset'] + \
                               frame['lineperiod'] * 2 * (frame['window_region'][2] // 2)
                 start_time = GPSData.create_timestamp(end_seconds - frame['exposure'], gps.NowCounts)
