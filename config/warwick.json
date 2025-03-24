@@ -5,7 +5,7 @@
   "log_name": "qhy_camd@warwick",
   "control_machines": ["WarwickTCS"],
   "client_commands_module": "rockit.camera.qhy",
-  "camera_device_id": "QHY600M-d7ee8b4c9a558212c",
+  "camera_device_id": "QHY600M-6cd9854c8b5a417d9",
   "cooler_setpoint": 0,
   "cooler_update_delay": 5,
   "cooler_pwm_step": 3,
