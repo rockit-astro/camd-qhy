@@ -26,6 +26,9 @@ mkdir -p %{buildroot}%{_udevrulesdir}
 %{__install} %{_sourcedir}/config/sting/cam3.json %{buildroot}%{_sysconfdir}/camd/cam3.json.sting
 %{__install} %{_sourcedir}/config/sting/cam4.json %{buildroot}%{_sysconfdir}/camd/cam4.json.sting
 %{__install} %{_sourcedir}/config/portable.json %{buildroot}%{_sysconfdir}/camd
+%{__install} %{_sourcedir}/config/pdt/cam1.json %{buildroot}%{_sysconfdir}/camd/cam1.json.pdt
+%{__install} %{_sourcedir}/config/pdt/cam2.json %{buildroot}%{_sysconfdir}/camd/cam2.json.pdt
+
 
 %package server
 Summary:  QHY camera server
@@ -79,6 +82,17 @@ Group:   Unspecified
 %files data-warwick
 %defattr(0644,root,root,-)
 %{_sysconfdir}/camd/warwick.json
+
+%package data-pdt
+Summary: QHY camera data for the PDT
+Group:   Unspecified
+RemovePathPostfixes: .pdt
+%description data-pdt
+
+%files data-pdt 
+%defattr(0644,root,root,-)
+%{_sysconfdir}/camd/cam1.json.pdt
+%{_sysconfdir}/camd/cam2.json.pdt
 
 %package data-portable
 Summary: QHY camera data for the portable telescope
