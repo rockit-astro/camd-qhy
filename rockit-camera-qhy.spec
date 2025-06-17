@@ -1,6 +1,6 @@
 Name:      rockit-camera-qhy
 Version:   %{_version}
-Release:   1
+Release:   1%{dist}
 Summary:   Control code for a QHY600 CMOS camera
 Url:       https://github.com/rockit-astro/qhy_camd
 License:   GPL-3.0

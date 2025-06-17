@@ -1,8 +1,8 @@
 Name:           python3-rockit-camera-qhy
 Version:        %{_version}
-Release:        1
+Release:        1%{dist}
 License:        GPL3
-Summary:   Common code for the QHY camera daemon
+Summary:        Common code for the QHY camera daemon
 Url:            https://github.com/rockit-astro/qhy_camd
 BuildArch:      noarch
 BuildRequires:  python3-devel
