@@ -18,7 +18,7 @@
   "binning_method": "sum",
   "stream": false,
   "use_gpsbox": true,
-  "header_card_capacity": 144,
+  "header_card_capacity": 180,
   "camera_id": "QHY600M",
   "output_path": "/data/incoming/",
   "output_prefix": "warwick",
