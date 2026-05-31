@@ -18,7 +18,7 @@ mkdir -p %{buildroot}%{_udevrulesdir}
 %{__install} %{_sourcedir}/qhy_camd %{buildroot}%{_bindir}
 %{__install} %{_sourcedir}/qhy_camd@.service %{buildroot}%{_unitdir}
 
-%{__install} %{_sourcedir}/config/halfmetre.json %{buildroot}%{_sysconfdir}/camd
+%{__install} %{_sourcedir}/config/onemetre.json %{buildroot}%{_sysconfdir}/camd
 %{__install} %{_sourcedir}/config/warwick.json %{buildroot}%{_sysconfdir}/camd
 %{__install} %{_sourcedir}/config/clasp/cmos.json %{buildroot}%{_sysconfdir}/camd/cmos.json.clasp
 %{__install} %{_sourcedir}/config/sting/cam1.json %{buildroot}%{_sysconfdir}/camd/cam1.json.sting
@@ -52,14 +52,14 @@ RemovePathPostfixes: .clasp
 %defattr(0644,root,root,-)
 %{_sysconfdir}/camd/cmos.json.clasp
 
-%package data-halfmetre
-Summary: QHY camera data for the half metre telescope
+%package data-onemetre
+Summary: QHY camera data for the W1m telescope
 Group:   Unspecified
-%description data-halfmetre
+%description data-onemetre
 
-%files data-halfmetre
+%files data-onemetre
 %defattr(0644,root,root,-)
-%{_sysconfdir}/camd/halfmetre.json
+%{_sysconfdir}/camd/onemetre.json
 
 %package data-sting
 Summary: QHY camera data for the STING telescope

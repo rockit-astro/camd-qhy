@@ -43,7 +43,7 @@ The automated packaging scripts will push 7 RPM packages to the observatory pack
 | Package                          | Description                                                                     |
 |----------------------------------|---------------------------------------------------------------------------------|
 | rockit-camera-qhy-data-clasp     | Contains the json configuration files for the CLASP instrument.                 |
-| rockit-camera-qhy-data-halfmetre | Contains the json configuration files for the Half metre camera.                |
+| rockit-camera-qhy-data-onemetre  | Contains the json configuration files for the W1m camera.                       |
 | rockit-camera-qhy-data-sting     | Contains the json configuration files for the STING cameras.                    |
 | rockit-camera-qhy-data-warwick   | Contains the json configuration files for the Windmill Hill Observatory camera. |
 | rockit-camera-qhy-server         | Contains the `qhy_camd` server and systemd service files for the camera server. |
