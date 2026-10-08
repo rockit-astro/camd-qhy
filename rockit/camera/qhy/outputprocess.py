@@ -20,6 +20,7 @@
 # pylint: disable=too-many-branches
 
 from ctypes import c_uint8, c_uint16, c_uint32, Structure
+import io
 import os.path
 import shutil
 from astropy.io import fits
@@ -29,6 +30,7 @@ import numpy as np
 from numpy.lib.stride_tricks import as_strided
 from rockit.common import daemons, log
 from .constants import CoolerMode
+from .vsock import VSockClientHelper
 
 
 class GPSData(Structure):
@@ -131,6 +133,7 @@ def output_process(process_queue, processing_framebuffer, processing_framebuffer
     and multiple worker processes allow frames to be handled in parallel.
     """
     pipeline_daemon = getattr(daemons, pipeline_daemon_name)
+    vsock_client = VSockClientHelper(5005)
     while True:
         frame = process_queue.get()
 
@@ -302,26 +305,41 @@ def output_process(process_queue, processing_framebuffer, processing_framebuffer
         for _ in range(padding):
             hdu.header.append(fits.Card(None, None, None), end=True)
 
-        # Save errors shouldn't interfere with preview updates, so we use a separate try/catch
-        try:
-            filename = f'{camera_id}-{frame["exposure_count"]:08d}.fits'
-            path = os.path.join(output_path, filename)
+        if vsock_client:
+            data = io.BytesIO()
+            hdu.writeto(data, overwrite=True)
+            data = data.getvalue()
 
-            # Simulate an atomic write by writing to a temporary file then renaming
-            hdu.writeto(path + '.tmp', overwrite=True)
-            shutil.move(path + '.tmp', path)
-            print('Saving temporary frame: ' + filename)
+            sent = False
+            for i in range(3):
+                if vsock_client.sendall(data):
+                    sent = True
+                    break
 
-        except Exception as e:
-            stop_signal.value = True
-            log.error(log_name, 'Failed to save temporary frame (' + str(e) + ')')
-            continue
+            if not sent:
+                stop_signal.value = True
+                log.error(log_name, 'Failed to transmit temporary frame')
+                continue
+        else:
+            try:
+                filename = f'{camera_id}-{frame["exposure_count"]:08d}.fits'
+                path = os.path.join(output_path, filename)
 
-        # Hand frame over to the pipeline
-        # This may block if the pipeline is busy
-        try:
-            with pipeline_daemon.connect(pipeline_handover_timeout) as pipeline:
-                pipeline.notify_frame(camera_id, filename)
-        except Exception as e:
-            stop_signal.value = True
-            log.error(log_name, 'Failed to hand frame to pipeline (' + str(e) + ')')
+                # Simulate an atomic write by writing to a temporary file then renaming
+                hdu.writeto(path + '.tmp', overwrite=True)
+                shutil.move(path + '.tmp', path)
+                print('Saving temporary frame: ' + filename)
+
+            except Exception as e:
+                stop_signal.value = True
+                log.error(log_name, 'Failed to save temporary frame (' + str(e) + ')')
+                continue
+
+            # Hand frame over to the pipeline
+            # This may block if the pipeline is busy
+            try:
+                with pipeline_daemon.connect(pipeline_handover_timeout) as pipeline:
+                    pipeline.notify_frame(camera_id, filename)
+            except Exception as e:
+                stop_signal.value = True
+                log.error(log_name, 'Failed to hand frame to pipeline (' + str(e) + ')')
