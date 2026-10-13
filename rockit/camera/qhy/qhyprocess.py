@@ -918,7 +918,7 @@ class QHYInterface:
                 state = CameraStatus.Aborting
             else:
                 if self._sequence_exposure_start_time is not None:
-                    exposure_progress = (Time.now() - self._sequence_exposure_start_time).to(u.s).value
+                    exposure_progress = float((Time.now() - self._sequence_exposure_start_time).to(u.s).value)
                     if exposure_progress >= self._exposure_time:
                         state = CameraStatus.Reading
 
